@@ -111,7 +111,7 @@ p { margin: 0 0 .6rem; }
 }
 .icon-btn:hover { background: rgba(255, 255, 255, .12); }
 .view {
-  flex: 1; width: 100%; max-width: 980px; margin: 0 auto;
+  flex: 1; width: 100%; min-width: 0; max-width: 980px; margin: 0 auto;
   padding: 1rem 16px calc(var(--tab-h) + 1.25rem + env(safe-area-inset-bottom));
   outline: none;
 }
@@ -161,9 +161,9 @@ p { margin: 0 0 .6rem; }
   .drawer { transform: none; box-shadow: none; border-right: 1px solid var(--border); }
   .scrim { display: none !important; }
   #btn-menu { display: none; }
-  .topbar, .view, .tabbar { margin-left: 290px; }
+  .topbar, .view { margin-left: 290px; margin-right: 0; }
   .tabbar { display: none; }
-  .view { padding-bottom: 2rem; max-width: none; }
+  .view { padding-bottom: 2rem; max-width: none; width: auto; }
   .view > .page { max-width: 1040px; margin: 0 auto; }
 }
 
