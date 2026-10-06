@@ -1,7 +1,7 @@
 /* Service worker: precaché versionada y atómica de la app (offline) + caché acotada para la API del tiempo.
    Al publicar una versión nueva, sube APP_VERSION: el navegador detecta el cambio, descarga todos los
    ficheros de golpe en una caché nueva y avisa al usuario. Así nunca se mezclan módulos de dos versiones. */
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const STATIC_CACHE = `ov-static-${APP_VERSION}`;
 const API_CACHE = 'ov-api-v1';
 const API_MAX_AGE_MS = 3 * 60 * 60 * 1000;
