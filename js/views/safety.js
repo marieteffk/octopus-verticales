@@ -1,7 +1,8 @@
 /* Seguridad: checklist diario pre-uso, registro de EPIs con revisiones/caducidades e incidencias. */
 import {
-  html, raw, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, todayKey, addDays, fmtDate, fmtDateTime, nowISO, emptyState, sortBy, avatar,
+  html, raw, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, todayKey, addDays, fmtDate, fmtDateTime, nowISO, emptyState, sortBy, avatar, iconBtn, sectionTitle,
 } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, person, personName } from '../db.js';
 import { activeJobs } from './jobs.js';
 import { openUploadDialog, openLightbox } from './photos.js';
@@ -40,7 +41,7 @@ function epiState(e) {
   if (e.expires && e.expires <= today) return ['danger', 'Caducado'];
   if (e.nextCheck && e.nextCheck <= today) return ['danger', 'Revisión vencida'];
   if (e.nextCheck && e.nextCheck <= addDays(today, 30)) return ['warn', 'Revisar pronto'];
-  return ['ok', 'OK'];
+  return ['ok', 'En regla'];
 }
 
 function openEpiForm(e = null) {
@@ -52,7 +53,7 @@ function openEpiForm(e = null) {
         <div class="field"><label>Tipo</label><select name="type">${selectOptions(EPI_TYPES, e?.type || 'Arnés')}</select></div>
         <div class="field"><label>Nombre / modelo *</label><input name="name" required value="${e?.name || ''}" placeholder="Petzl Avao Bod"></div>
         <div class="field"><label>Nº de serie</label><input name="serial" value="${e?.serial || ''}"></div>
-        <div class="field"><label>Asignado a</label><select name="memberId">${selectOptions([['', '— Común —'], ...members.map((m) => [m.id, m.name])], e?.memberId || '')}</select></div>
+        <div class="field"><label>Asignado a</label><select name="memberId">${selectOptions([['', 'Común'], ...members.map((m) => [m.id, m.name])], e?.memberId || '')}</select></div>
         <div class="field"><label>Fecha de compra</label><input name="purchased" type="date" value="${e?.purchased || ''}"></div>
         <div class="field"><label>Caducidad fabricante</label><input name="expires" type="date" value="${e?.expires || ''}"></div>
         <div class="field"><label>Última revisión</label><input name="lastCheck" type="date" value="${e?.lastCheck || todayKey()}"></div>
@@ -91,7 +92,7 @@ function openIncidentForm(inc = null) {
         <div class="field"><label>Fecha</label><input name="date" type="date" value="${inc?.date || todayKey()}" required></div>
         <div class="field"><label>Gravedad</label><select name="severity">${selectOptions(SEVERITIES, inc?.severity || 'leve')}</select></div>
       </div>
-      <div class="field"><label>Trabajo</label><select name="jobId">${selectOptions([['', '— Sin trabajo —'], ...jobs.map((j) => [j.id, j.title])], inc?.jobId || '')}</select></div>
+      <div class="field"><label>Trabajo</label><select name="jobId">${selectOptions([['', 'Sin trabajo'], ...jobs.map((j) => [j.id, j.title])], inc?.jobId || '')}</select></div>
       <div class="field"><label>Qué ha pasado *</label><textarea name="description" required placeholder="Describe la incidencia, personas implicadas, causas…">${inc?.description || ''}</textarea></div>
       <div class="field"><label>Medidas tomadas / propuestas</label><textarea name="actions" placeholder="Qué se hizo y qué se cambia para que no se repita">${inc?.actions || ''}</textarea></div>
     </form>`,
@@ -117,7 +118,7 @@ export default function safetyView(ctx) {
 
   const draw = () => {
     rerender(ctx.el, html`<div class="page">
-      <div class="tabs">${[['checklist', '✅ Checklist diario'], ['epis', `🦺 EPIs${epiAlerts().length ? ` (${epiAlerts().length}⚠️)` : ''}`], ['incidencias', '⚠️ Incidencias']].map(([k, l]) => html`<button data-tab="${k}" class="${state.tab === k ? 'active' : ''}">${l}</button>`)}</div>
+      <div class="tabs">${[['checklist', 'check-square', 'Checklist diario'], ['epis', 'hardhat', `EPIs${epiAlerts().length ? ` (${epiAlerts().length})` : ''}`], ['incidencias', 'alert', 'Incidencias']].map(([k, ic, l]) => html`<button data-tab="${k}" class="${state.tab === k ? 'active' : ''}">${icon(ic, { size: 16 })}${l}</button>`)}</div>
       ${state.tab === 'checklist' ? checklistTab() : state.tab === 'epis' ? episTab() : incidentsTab()}
     </div>`);
     hydratePhotos(ctx.el);
@@ -130,39 +131,39 @@ export default function safetyView(ctx) {
     const history = sortBy(store.list('checklists'), 'createdAt', -1).slice(0, 30);
     return html`
       <div class="card">
-        <div class="card-title"><h2>Pre-uso de hoy · ${fmtDate(todayKey(), { weekday: 'long', day: 'numeric', month: 'long' })}</h2>${saved ? html`<span class="chip ${saved.allOk ? 'ok' : 'warn'}">${saved.allOk ? 'Firmado OK' : 'Firmado con observaciones'}</span>` : html`<span class="chip outline">${done}/${CHECK_ITEMS.length}</span>`}</div>
-        <div class="field"><label>Trabajo</label><select class="input" id="ck-job">${selectOptions([['', '— Sin trabajo —'], ...jobs.map((j) => [j.id, j.title])], state.jobId)}</select></div>
+        <div class="card-title"><h2 style="text-transform:capitalize">Pre-uso · ${fmtDate(todayKey(), { weekday: 'long', day: 'numeric', month: 'long' })}</h2>${saved ? html`<span class="chip ${saved.allOk ? 'ok' : 'warn'}">${saved.allOk ? 'Firmado' : 'Con observaciones'}</span>` : html`<span class="chip outline">${done} / ${CHECK_ITEMS.length}</span>`}</div>
+        <div class="field"><label>Trabajo</label><select class="input" id="ck-job">${selectOptions([['', 'Sin trabajo'], ...jobs.map((j) => [j.id, j.title])], state.jobId)}</select></div>
         ${CHECK_ITEMS.map(([k, l]) => html`<label class="check ${state.checks[k] ? 'done' : ''}"><input type="checkbox" data-check="${k}" ${state.checks[k] ? raw('checked') : ''}><span>${l}</span></label>`)}
         <div class="field mt"><label>Observaciones</label><textarea id="ck-notes" placeholder="Anota cualquier punto no conforme y cómo se ha resuelto">${state.notes}</textarea></div>
-        <div class="row gap-s"><button class="btn small ghost" id="ck-all">Marcar todo</button><button class="btn ok grow" id="ck-sign">✍️ Firmar como ${store.profile?.name}</button></div>
-        <p class="tiny muted mt">Si algún punto no está conforme, NO se inicia el trabajo en altura hasta resolverlo.</p>
+        <div class="row gap-s"><button class="btn small ghost" id="ck-all">Marcar todo</button>${iconBtn('signature', `Firmar como ${store.profile?.name}`, 'ok grow', 'id="ck-sign"')}</div>
+        <p class="tiny muted mt" style="margin-bottom:0">Si algún punto no está conforme, no se inicia el trabajo en altura hasta resolverlo.</p>
       </div>
-      <h2>Historial</h2>
-      ${history.length ? html`<div class="list">${history.map((c) => html`<div class="item">${avatar(person(c.memberId), 'small')}<div class="body"><div class="title">${fmtDate(c.date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${personName(c.memberId)}</div><div class="sub ellipsis">${store.get('jobs', c.jobId)?.title || 'Sin trabajo'}${c.notes ? ` · ${c.notes}` : ''}</div></div><span class="chip ${c.allOk ? 'ok' : 'warn'}">${Object.values(c.items || {}).filter(Boolean).length}/${CHECK_ITEMS.length}</span></div>`)}</div>` : emptyState('✅', 'Aún no hay checklists firmados.')}`;
+      ${sectionTitle('Historial')}
+      ${history.length ? html`<div class="list">${history.map((c) => html`<div class="item">${avatar(person(c.memberId), 'small')}<div class="body"><div class="title">${fmtDate(c.date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${personName(c.memberId)}</div><div class="sub ellipsis">${store.get('jobs', c.jobId)?.title || 'Sin trabajo'}${c.notes ? ` · ${c.notes}` : ''}</div></div><span class="chip ${c.allOk ? 'ok' : 'warn'}">${Object.values(c.items || {}).filter(Boolean).length} / ${CHECK_ITEMS.length}</span></div>`)}</div>` : emptyState('check-square', 'Aún no hay checklists firmados.')}`;
   };
 
   const episTab = () => {
     const list = sortBy(store.list('equipment'), (e) => `${epiState(e)[0] === 'danger' ? 0 : epiState(e)[0] === 'warn' ? 1 : 2}-${e.nextCheck || '9999'}`);
     return html`
-      <div class="row between mb"><span class="muted small">Registro de equipos de protección individual y revisiones</span><button class="btn small accent" id="epi-add">+ EPI</button></div>
+      <div class="row between mb"><span class="muted small">Equipos de protección individual y sus revisiones</span>${iconBtn('plus', 'EPI', 'small', 'id="epi-add"')}</div>
       ${list.length ? html`<div class="list">${list.map((e) => { const [cls, label] = epiState(e);
         return html`<div class="item"><div class="body clickable" data-epi="${e.id}"><div class="title">${e.type} · ${e.name}</div><div class="sub">${[e.serial ? `Nº ${e.serial}` : '', e.memberId ? personName(e.memberId) : 'Común', e.nextCheck ? `próx. rev. ${fmtDate(e.nextCheck)}` : '', e.expires ? `caduca ${fmtDate(e.expires)}` : ''].filter(Boolean).join(' · ')}</div></div>
           <div class="stack gap-s" style="align-items:flex-end"><span class="chip ${cls}">${label}</span>${e.status !== 'retirado' ? html`<button class="btn small ghost" data-epi-check="${e.id}">Revisado hoy</button>` : ''}</div></div>`; })}</div>`
-        : emptyState('🦺', 'Registra arneses, cuerdas, cascos… para no olvidar ninguna revisión.')}`;
+        : emptyState('hardhat', 'Registra arneses, cuerdas, cascos… para no olvidar ninguna revisión.')}`;
   };
 
   const incidentsTab = () => {
     const list = sortBy(store.list('incidents'), 'date', -1);
     return html`
-      <div class="row between mb"><span class="muted small">Accidentes, casi accidentes y situaciones de riesgo</span><button class="btn small accent" id="inc-add">+ Incidencia</button></div>
+      <div class="row between mb"><span class="muted small">Accidentes, casi accidentes y situaciones de riesgo</span>${iconBtn('plus', 'Incidencia', 'small', 'id="inc-add"')}</div>
       ${list.length ? list.map((i) => { const sev = SEVERITIES.find(([k]) => k === i.severity)?.[1] || i.severity; const photos = (i.photoIds || []).map((id) => store.get('photos', id)).filter(Boolean);
         return html`<div class="card tight">
           <div class="row between"><b>${fmtDate(i.date)} · ${store.get('jobs', i.jobId)?.title || 'Sin trabajo'}</b><span class="chip ${i.severity === 'casi' ? 'info' : i.severity === 'leve' ? 'warn' : 'danger'}">${sev}</span></div>
           <p class="pre small" style="margin:.4rem 0">${i.description}</p>
           ${i.actions ? html`<p class="pre small muted" style="margin:0 0 .4rem">Medidas: ${i.actions}</p>` : ''}
           ${photos.length ? html`<div class="photo-grid mb">${photos.map((p, idx) => html`<div class="photo-tile" data-inc-photo="${i.id}:${idx}"><img data-photo="${p.id}" data-thumb="1" alt=""></div>`)}</div>` : ''}
-          <div class="row gap-s"><button class="btn small ghost" data-inc-edit="${i.id}">✏️ Editar</button><button class="btn small ghost" data-inc-photo-add="${i.id}">📷 Foto</button><span class="tiny muted grow right">${personName(i.authorId)} · ${fmtDateTime(i.createdAt)}</span></div>
-        </div>`; }) : emptyState('⚠️', 'Sin incidencias registradas. ¡Que siga así!')}`;
+          <div class="row gap-s">${iconBtn('edit', 'Editar', 'small ghost', `data-inc-edit="${i.id}"`)}${iconBtn('camera', 'Foto', 'small ghost', `data-inc-photo-add="${i.id}"`)}<span class="tiny muted grow right">${personName(i.authorId)} · ${fmtDateTime(i.createdAt)}</span></div>
+        </div>`; }) : emptyState('alert', 'Sin incidencias registradas.')}`;
   };
 
   ctx.watch(['checklists', 'equipment', 'incidents', 'jobs', 'team', 'photos'], draw);
@@ -181,7 +182,7 @@ export default function safetyView(ctx) {
     if (!allOk && !state.notes.trim()) { toast('Hay puntos sin marcar: añade una observación o márcalos', 'warn'); return; }
     const saved = todayChecklist();
     await store.put('checklists', { ...(saved || {}), date: todayKey(), memberId: store.profile.id, jobId: state.jobId || null, items: state.checks, notes: state.notes, allOk, signedAt: nowISO() });
-    toast(allOk ? 'Checklist firmado: todo OK' : 'Checklist firmado con observaciones', allOk ? 'ok' : 'warn');
+    toast(allOk ? 'Checklist firmado: todo correcto' : 'Checklist firmado con observaciones', allOk ? 'ok' : 'warn');
   });
   on(ctx.el, 'click', '#epi-add', () => openEpiForm());
   on(ctx.el, 'click', '[data-epi]', (ev, el) => openEpiForm(store.get('equipment', el.dataset.epi)));

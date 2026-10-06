@@ -1,14 +1,15 @@
 /* Galería de fotos compartida: subir (cámara/galería), filtrar, ver, compartir y seleccionar varias. */
 import {
-  html, raw, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, pickFiles,
+  html, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, pickFiles, searchBox, iconBtn,
   fmtDateTime, emptyState, sortBy,
 } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, personName } from '../db.js';
 import { addPhotos, hydratePhotos, photoUrl, sharePhotos, deletePhoto, PHOTO_TAGS, tagLabel } from '../media.js';
 
 function jobOptions(selected) {
   const jobs = sortBy(store.list('jobs'), 'title');
-  return selectOptions([['', '— Sin trabajo —'], ...jobs.map((j) => [j.id, j.title])], selected || '');
+  return selectOptions([['', 'Sin trabajo'], ...jobs.map((j) => [j.id, j.title])], selected || '');
 }
 
 /** Diálogo de subida: elige archivos y metadatos (trabajo, etiqueta, pie). */
@@ -28,7 +29,7 @@ export async function openUploadDialog({ jobId = null, source = 'galeria', captu
       </form>`,
       actions: [
         { label: 'Cancelar', cls: 'ghost', onClick: () => resolve() },
-        { label: 'Guardar fotos', cls: 'accent', onClick: async (api) => {
+        { label: 'Guardar fotos', onClick: async (api) => {
           const v = formValues(api.el.querySelector('#up-form'));
           toast('Procesando fotos…');
           result = await addPhotos(picked, { jobId: v.jobId || null, tag: v.tag, caption: v.caption, source });
@@ -59,12 +60,12 @@ export function openLightbox(photos, index = 0) {
     const p = store.get('photos', photos[i].id) || photos[i];
     const job = store.get('jobs', p.jobId);
     box.innerHTML = String(html`
-      <div class="bar"><button class="icon-btn" data-lb="close" aria-label="Cerrar">✕</button><span class="grow small">${i + 1} / ${photos.length}</span>
-        <button class="icon-btn" data-lb="share" aria-label="Compartir">📤</button><button class="icon-btn" data-lb="edit" aria-label="Editar">✏️</button><button class="icon-btn" data-lb="del" aria-label="Eliminar">🗑️</button></div>
+      <div class="bar"><button class="icon-btn" data-lb="close" aria-label="Cerrar">${icon('close')}</button><span class="grow small" style="padding-left:.4rem">${i + 1} / ${photos.length}</span>
+        <button class="icon-btn" data-lb="share" aria-label="Compartir">${icon('share')}</button><button class="icon-btn" data-lb="edit" aria-label="Editar">${icon('edit')}</button><button class="icon-btn" data-lb="del" aria-label="Eliminar">${icon('trash')}</button></div>
       <img alt="${p.caption || ''}" data-lb-img>
       <div class="caption">
         <div class="row between"><span>${p.caption || html`<span class="muted">Sin descripción</span>`}</span><span class="chip">${tagLabel(p.tag)}</span></div>
-        <div class="tiny muted">${personName(p.authorId)} · ${fmtDateTime(p.createdAt)}${job ? html` · <a href="#/trabajos/${job.id}" style="color:#9cd" data-lb="close">${job.title}</a>` : ''}</div>
+        <div class="tiny muted">${personName(p.authorId)} · ${fmtDateTime(p.createdAt)}${job ? html` · <a href="#/trabajos/${job.id}" style="color:#9cc4e8" data-lb="close">${job.title}</a>` : ''}</div>
       </div>`);
     box.querySelector('[data-lb-img]').src = await photoUrl(p);
   };
@@ -134,24 +135,24 @@ export default function photosView(ctx) {
     rerender(ctx.el, html`
       <div class="page">
         <div class="row gap-s mb">
-          <button class="btn accent grow" id="ph-camera">📷 Cámara</button>
-          <button class="btn grow" id="ph-gallery">🖼️ Galería</button>
-          <button class="btn ghost ${state.select ? 'accent' : ''}" id="ph-select">${state.select ? `✓ ${state.selected.size}` : 'Seleccionar'}</button>
+          ${iconBtn('camera', 'Cámara', 'grow', 'id="ph-camera"')}
+          ${iconBtn('image', 'Galería', 'ghost grow', 'id="ph-gallery"')}
+          ${iconBtn('check-square', state.select ? String(state.selected.size) : 'Seleccionar', state.select ? 'subtle' : 'ghost', 'id="ph-select"')}
         </div>
-        ${state.select ? html`<div class="row gap-s mb wrap"><button class="btn small ok" id="ph-share-sel" ${state.selected.size ? '' : raw('disabled')}>📤 Compartir seleccionadas</button><button class="btn small danger" id="ph-del-sel" ${state.selected.size ? '' : raw('disabled')}>🗑️ Eliminar</button><button class="btn small ghost" id="ph-sel-all">Todas</button></div>` : ''}
-        <div class="search"><input id="ph-q" placeholder="Buscar por pie, trabajo o autor…" value="${state.q}"></div>
+        ${state.select ? html`<div class="row gap-s mb wrap">${iconBtn('share', 'Compartir seleccionadas', 'small', `id="ph-share-sel" ${state.selected.size ? '' : 'disabled'}`)}${iconBtn('trash', 'Eliminar', 'small danger', `id="ph-del-sel" ${state.selected.size ? '' : 'disabled'}`)}<button class="btn small ghost" id="ph-sel-all">Todas</button></div>` : ''}
+        ${searchBox('ph-q', 'Buscar por pie, trabajo o autor…', state.q)}
         <div class="row gap-s mb">
           <select class="input grow" id="ph-job">${jobOptions(state.job)}</select>
           <select class="input" id="ph-tag" style="max-width:45%">${selectOptions([['', 'Todas las etiquetas'], ...PHOTO_TAGS], state.tag)}</select>
         </div>
         ${list.length ? Object.entries(groups).map(([day, ps]) => html`
-          <div class="muted small bold" style="margin:.75rem 0 .35rem">${new Date(day + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} · ${ps.length}</div>
-          <div class="photo-grid">${ps.map((p) => html`<div class="photo-tile" data-id="${p.id}" style="${state.selected.has(p.id) ? 'outline:3px solid var(--accent)' : ''}">
+          <div class="muted tiny bold" style="margin:.75rem 0 .35rem;text-transform:uppercase;letter-spacing:.05em">${new Date(day + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} · ${ps.length}</div>
+          <div class="photo-grid">${ps.map((p) => html`<div class="photo-tile ${state.selected.has(p.id) ? 'selected' : ''}" data-id="${p.id}">
             <img data-photo="${p.id}" data-thumb="1" alt="${p.caption || ''}" loading="lazy">
             ${p.jobId ? html`<span class="tag">${tagLabel(p.tag)}</span>` : ''}
-            ${state.select ? html`<span class="tag" style="left:auto;right:4px;top:4px;bottom:auto">${state.selected.has(p.id) ? '☑' : '☐'}</span>` : ''}
+            ${state.select ? html`<span class="sel">${state.selected.has(p.id) ? icon('check', { size: 16 }) : ''}</span>` : ''}
           </div>`)}</div>`)
-          : emptyState('📷', 'No hay fotos con estos filtros. Haz una con la cámara o sube desde la galería.')}
+          : emptyState('camera', 'No hay fotos con estos filtros. Haz una con la cámara o sube desde la galería.')}
       </div>`);
     hydratePhotos(ctx.el);
   };

@@ -1,7 +1,8 @@
 /* Notas rápidas y listas de comprobación, personales o compartidas con el equipo. */
 import {
-  html, raw, render, rerender, on, modal, toast, confirmDialog, formValues, relTime, emptyState, sortBy, uid, avatar,
+  html, raw, render, rerender, on, modal, toast, confirmDialog, formValues, relTime, emptyState, sortBy, uid, avatar, searchBox,
 } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, person } from '../db.js';
 
 const COLORS = [['orange', 'Naranja'], ['blue', 'Azul'], ['green', 'Verde'], ['yellow', 'Amarillo'], ['red', 'Rojo'], ['grey', 'Gris']];
@@ -16,7 +17,7 @@ export function openNoteForm(note = null) {
       <div class="field"><label>Texto</label><textarea name="body" placeholder="Escribe lo que no se puede olvidar…">${note?.body || ''}</textarea></div>
       <div class="field"><label>Lista de comprobación</label>
         <div id="note-items">${items.map((it, i) => itemRow(it, i))}</div>
-        <div class="row"><input id="note-new-item" class="input grow" placeholder="Añadir elemento y pulsar Enter"><button type="button" class="btn small" id="note-add-item">+</button></div></div>
+        <div class="row"><input id="note-new-item" class="input grow" placeholder="Añadir elemento y pulsar Enter"><button type="button" class="btn small icon" id="note-add-item" aria-label="Añadir">${icon('plus', { size: 16 })}</button></div></div>
       <div class="grid-2">
         <div class="field"><label>Color</label><select name="color">${COLORS.map(([v, l]) => html`<option value="${v}" ${(note?.color || 'orange') === v ? raw('selected') : ''}>${l}</option>`)}</select></div>
         <div class="field"><label>Etiquetas</label><input name="tags" value="${(note?.tags || []).join(', ')}" placeholder="obra, compras, aviso"></div>
@@ -63,7 +64,7 @@ export function openNoteForm(note = null) {
 }
 
 function itemRow(it, i) {
-  return html`<label class="check ${it.done ? 'done' : ''}"><input type="checkbox" data-item-toggle="${i}" ${it.done ? raw('checked') : ''}><span class="grow">${it.text}</span><button type="button" class="icon-btn" data-item-del="${i}" aria-label="Quitar">✕</button></label>`;
+  return html`<label class="check ${it.done ? 'done' : ''}"><input type="checkbox" data-item-toggle="${i}" ${it.done ? raw('checked') : ''}><span class="grow">${it.text}</span><button type="button" class="icon-btn" data-item-del="${i}" aria-label="Quitar">${icon('close', { size: 16 })}</button></label>`;
 }
 
 export function noteCard(n, { compact = false } = {}) {
@@ -72,14 +73,14 @@ export function noteCard(n, { compact = false } = {}) {
   const owner = person(n.ownerId || n.authorId);
   return html`<div class="card tight clickable note-card c-${n.color || 'orange'}" data-note="${n.id}">
     <div class="row between gap-s">
-      <div class="bold ellipsis grow">${n.pinned ? '📌 ' : ''}${n.title || html`<span class="muted">Sin título</span>`}</div>
+      <div class="bold ellipsis grow row gap-s">${n.pinned ? icon('pushpin', { size: 14, cls: 'muted' }) : ''}${n.title || html`<span class="muted">Sin título</span>`}</div>
       ${n.shared ? html`<span class="chip info tiny">Equipo</span>` : html`<span class="chip outline tiny">Privada</span>`}
     </div>
     ${n.body ? html`<div class="pre small" style="margin-top:.3rem;${compact ? 'max-height:3.9em;overflow:hidden' : ''}">${n.body}</div>` : ''}
     ${items.length ? html`<div style="margin-top:.35rem">${(compact ? items.slice(0, 4) : items).map((it) => html`<label class="check ${it.done ? 'done' : ''}" style="padding:.15rem 0"><input type="checkbox" data-note-item="${n.id}:${it.id}" ${it.done ? raw('checked') : ''}><span class="small">${it.text}</span></label>`)}
       ${compact && items.length > 4 ? html`<div class="tiny muted">+${items.length - 4} más</div>` : ''}
-      <div class="tiny muted">${done}/${items.length} hechas</div></div>` : ''}
-    <div class="row between" style="margin-top:.4rem">
+      <div class="tiny muted">${done} de ${items.length} hechas</div></div>` : ''}
+    <div class="row between" style="margin-top:.45rem">
       <span class="row gap-s">${avatar(owner, 'small')}<span class="tiny muted">${owner.name} · ${relTime(n.updatedAt)}</span></span>
       <span class="chips">${(n.tags || []).map((t) => html`<span class="chip outline tiny">#${t}</span>`)}</span>
     </div>
@@ -106,11 +107,11 @@ export default function notesView(ctx) {
     notes = [...sortBy(notes.filter((n) => n.pinned), 'updatedAt', -1), ...sortBy(notes.filter((n) => !n.pinned), 'updatedAt', -1)];
     rerender(ctx.el, html`
       <div class="page">
-        <div class="search"><input id="note-q" placeholder="Buscar en notas…" value="${state.q}"></div>
+        ${searchBox('note-q', 'Buscar en notas…', state.q)}
         <div class="chips scroll mb">${[['todas', 'Todas'], ['mias', 'Mías'], ['equipo', 'Equipo'], ['pendientes', 'Con tareas pendientes']].map(([k, l]) => html`<span class="chip pick ${state.filter === k ? 'active' : ''}" data-filter="${k}">${l}</span>`)}</div>
-        ${notes.length ? notes.map((n) => noteCard(n)) : emptyState('📝', 'No hay notas. Apunta lo que no se puede olvidar con el botón +.')}
+        ${notes.length ? notes.map((n) => noteCard(n)) : emptyState('note', 'No hay notas. Apunta lo que no se puede olvidar con el botón +.')}
       </div>
-      <button class="fab" id="fab-note" aria-label="Nueva nota">+</button>`);
+      <button class="fab" id="fab-note" aria-label="Nueva nota">${icon('plus', { size: 26 })}</button>`);
   };
   ctx.watch(['notes', 'team'], draw);
   draw();

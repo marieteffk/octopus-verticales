@@ -1,9 +1,12 @@
 /* Ajustes: perfil, apariencia, umbrales meteorológicos, empresa, instalación, nube y copias de seguridad. */
-import { html, raw, render, on, toast, confirmDialog, formValues, selectOptions, pickFiles, download, todayKey, colorFor } from '../ui.js';
+import { html, render, on, toast, confirmDialog, formValues, selectOptions, pickFiles, download, todayKey, colorFor, iconBtn } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, getSettings, saveSettings, DEFAULT_SETTINGS, ROLES } from '../db.js';
 import { cloud } from '../cloud.js';
 
 const REPO_URL = 'https://github.com/marieteffk/octopus-verticales';
+
+function cardTitle(ic, text) { return html`<h2 class="row gap-s">${icon(ic, { cls: 'muted' })}${text}</h2>`; }
 
 export default function settingsView(ctx) {
   const draw = () => {
@@ -14,7 +17,7 @@ export default function settingsView(ctx) {
     const standalone = window.matchMedia('(display-mode: standalone)').matches;
     render(ctx.el, html`<div class="page">
       <form class="card" id="f-profile">
-        <h2>👤 Mi perfil</h2>
+        ${cardTitle('user', 'Mi perfil')}
         <div class="field"><label>Nombre</label><input name="name" value="${p.name || ''}" required></div>
         <div class="grid-2">
           <div class="field"><label>Puesto</label><select name="role">${selectOptions(ROLES, p.role || 'tecnico')}</select></div>
@@ -24,13 +27,13 @@ export default function settingsView(ctx) {
       </form>
 
       <form class="card" id="f-look">
-        <h2>🎨 Apariencia</h2>
+        ${cardTitle('sun', 'Apariencia')}
         <div class="field"><label>Tema</label><select name="theme">${selectOptions([['auto', 'Automático (según el móvil)'], ['light', 'Claro'], ['dark', 'Oscuro']], s.theme)}</select></div>
-        <button class="btn">Aplicar</button>
+        <button class="btn ghost">Aplicar</button>
       </form>
 
       <form class="card" id="f-weather">
-        <h2>🌦️ Umbrales de seguridad meteorológica</h2>
+        ${cardTitle('weather', 'Umbrales de seguridad meteorológica')}
         <p class="muted small">El semáforo del clima usa estos límites. Ajústalos al criterio de la empresa.</p>
         <div class="grid-2">
           <div class="field"><label>Prob. lluvia: precaución (%)</label><input name="rainCaution" type="number" min="0" max="100" value="${w.rainCaution}"></div>
@@ -47,7 +50,7 @@ export default function settingsView(ctx) {
       </form>
 
       <form class="card" id="f-company">
-        <h2>🏢 Empresa</h2>
+        ${cardTitle('building', 'Empresa')}
         <div class="grid-2">
           <div class="field"><label>Nombre (presupuestos)</label><input name="name" value="${s.company.name}"></div>
           <div class="field"><label>IVA (%)</label><input name="vat" type="number" min="0" max="100" value="${s.company.vat}"></div>
@@ -56,14 +59,14 @@ export default function settingsView(ctx) {
       </form>
 
       <div class="card">
-        <h2>📲 Instalar en el móvil</h2>
-        ${standalone ? html`<p class="muted">La app ya está instalada en este dispositivo. ✅</p>`
-          : installable ? html`<p class="muted small">Instala Octopus Verticales como app: icono en la pantalla de inicio, pantalla completa y funcionamiento sin conexión.</p><button class="btn accent" id="btn-install">Instalar ahora</button>`
-          : html`<p class="muted small"><b>Android (Chrome):</b> menú ⋮ → “Instalar aplicación” o “Añadir a pantalla de inicio”.<br><b>iPhone (Safari):</b> botón Compartir → “Añadir a pantalla de inicio”.<br><b>Ordenador (Chrome/Edge):</b> icono de instalar en la barra de direcciones.</p>`}
+        ${cardTitle('device', 'Instalar en el móvil')}
+        ${standalone ? html`<p class="muted small">La app ya está instalada en este dispositivo.</p>`
+          : installable ? html`<p class="muted small">Instala Octopus Verticales como app: icono en la pantalla de inicio, pantalla completa y funcionamiento sin conexión.</p><button class="btn" id="btn-install">Instalar ahora</button>`
+          : html`<p class="muted small"><b>Android (Chrome):</b> menú de tres puntos → “Instalar aplicación” o “Añadir a pantalla de inicio”.<br><b>iPhone (Safari):</b> botón Compartir → “Añadir a pantalla de inicio”.<br><b>Ordenador (Chrome/Edge):</b> icono de instalar en la barra de direcciones.</p>`}
       </div>
 
       <div class="card" id="cloud-card">
-        <h2>☁️ Nube del equipo (Supabase, gratis)</h2>
+        ${cardTitle('cloud', 'Nube del equipo (Supabase, gratis)')}
         <p class="muted small">Sin nube, los datos viven solo en este dispositivo. Con la nube, todo el equipo comparte fotos, muro, trabajos y notas en tiempo real. <a href="${REPO_URL}#nube-compartida-supabase" target="_blank" rel="noopener">Guía de configuración (5 min)</a>.</p>
         <form id="f-cloud">
           <div class="field"><label>URL del proyecto</label><input name="url" value="${s.cloud.url}" placeholder="https://xxxxx.supabase.co" autocomplete="off"></div>
@@ -72,7 +75,7 @@ export default function settingsView(ctx) {
         </form>
         ${cloud.isConfigured() ? html`<div class="mt" id="cloud-auth">
           <div class="row between"><span class="chip ${cloud.status === 'online' ? 'ok' : cloud.status === 'error' ? 'danger' : 'warn'}">${cloud.status === 'online' ? 'Conectado' : cloud.status === 'error' ? 'Error' : cloud.status === 'pending' ? 'Sincronizando…' : 'Sin sesión'}</span>${cloud.detail ? html`<span class="tiny muted">${cloud.detail}</span>` : ''}</div>
-          ${cloud.isActive() ? html`<p class="small mt">Sesión: <b>${cloud.session?.user?.email}</b></p><div class="row gap-s"><button class="btn ghost" id="cloud-resync">↻ Sincronizar ahora</button><button class="btn danger" id="cloud-logout">Cerrar sesión</button></div>`
+          ${cloud.isActive() ? html`<p class="small mt">Sesión: <b>${cloud.session?.user?.email}</b></p><div class="row gap-s">${iconBtn('refresh', 'Sincronizar ahora', 'ghost', 'id="cloud-resync"')}<button class="btn danger" id="cloud-logout">Cerrar sesión</button></div>`
             : html`<form id="f-login" class="mt">
               <div class="grid-2"><div class="field"><label>Email</label><input name="email" type="email" required autocomplete="username"></div><div class="field"><label>Contraseña</label><input name="password" type="password" required minlength="6" autocomplete="current-password"></div></div>
               <div class="row gap-s"><button class="btn grow">Entrar</button><button class="btn ghost grow" type="button" id="cloud-signup">Crear cuenta</button></div>
@@ -81,19 +84,19 @@ export default function settingsView(ctx) {
       </div>
 
       <div class="card">
-        <h2>💾 Copia de seguridad</h2>
+        ${cardTitle('database', 'Copia de seguridad')}
         <p class="muted small">Exporta todos los datos a un archivo JSON (opcionalmente con las fotos) e impórtalo en otro dispositivo o guárdalo como respaldo.</p>
         <div class="row wrap gap-s">
-          <button class="btn ghost" id="exp-json">⬇ Exportar datos</button>
-          <button class="btn ghost" id="exp-json-media">⬇ Exportar con fotos</button>
-          <button class="btn ghost" id="imp-json">⬆ Importar</button>
+          ${iconBtn('download', 'Exportar datos', 'ghost', 'id="exp-json"')}
+          ${iconBtn('download', 'Exportar con fotos', 'ghost', 'id="exp-json-media"')}
+          ${iconBtn('upload', 'Importar', 'ghost', 'id="imp-json"')}
         </div>
         <div class="mt"><button class="btn danger small" id="wipe">Borrar todos los datos de este dispositivo</button></div>
       </div>
 
       <div class="card">
-        <h2>ℹ️ Acerca de</h2>
-        <p class="small muted">Octopus Verticales · app interna v1.0.0 · PWA para Android, iOS y web.<br>Meteorología: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (datos abiertos, sin clave).<br>Código: <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p>
+        ${cardTitle('info', 'Acerca de')}
+        <p class="small muted" style="margin:0">Octopus Verticales · app interna v1.1.0 · PWA para Android, iOS y web.<br>Meteorología: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (datos abiertos, sin clave).<br>Código: <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p>
       </div>
     </div>`);
   };

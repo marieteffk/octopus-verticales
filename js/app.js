@@ -1,5 +1,6 @@
 /* Arranque: router por hash, navegación, onboarding, tema, service worker. */
 import { html, render, qs, on, toast, closeTopModal, setTopbar, formValues, uid, colorFor } from './ui.js';
+import { icon } from './icons.js';
 import { store, getSettings, saveSettings, ROLES } from './db.js';
 import { cloud } from './cloud.js';
 
@@ -18,21 +19,21 @@ import teamView from './views/team.js';
 import settingsView from './views/settings.js';
 
 export const ROUTES = [
-  { path: 'inicio', title: 'Inicio', icon: '🏠', view: homeView, tab: true },
-  { path: 'trabajos', title: 'Trabajos', icon: '🧰', view: jobsView, tab: true },
-  { path: 'fotos', title: 'Fotos', icon: '📷', view: photosView, tab: true },
-  { path: 'muro', title: 'Muro', icon: '💬', view: feedView, tab: true },
-  { path: 'clima', title: 'Clima', icon: '🌦️', view: weatherView, tab: true },
+  { path: 'inicio', title: 'Inicio', icon: 'home', view: homeView, tab: true },
+  { path: 'trabajos', title: 'Trabajos', icon: 'briefcase', view: jobsView, tab: true },
+  { path: 'fotos', title: 'Fotos', icon: 'camera', view: photosView, tab: true },
+  { path: 'muro', title: 'Muro', icon: 'feed', view: feedView, tab: true },
+  { path: 'clima', title: 'Clima', icon: 'weather', view: weatherView, tab: true },
   { sep: true },
-  { path: 'agenda', title: 'Agenda', icon: '📅', view: calendarView },
-  { path: 'notas', title: 'Notas', icon: '📝', view: notesView },
-  { path: 'partes', title: 'Partes y horas', icon: '⏱️', view: timesheetsView },
-  { path: 'seguridad', title: 'Seguridad y EPIs', icon: '🦺', view: safetyView },
-  { path: 'materiales', title: 'Materiales', icon: '📦', view: inventoryView },
-  { path: 'clientes', title: 'Clientes', icon: '🏢', view: clientsView },
-  { path: 'equipo', title: 'Equipo', icon: '👷', view: teamView },
+  { path: 'agenda', title: 'Agenda', icon: 'calendar', view: calendarView },
+  { path: 'notas', title: 'Notas', icon: 'note', view: notesView },
+  { path: 'partes', title: 'Partes y horas', icon: 'clock', view: timesheetsView },
+  { path: 'seguridad', title: 'Seguridad y EPIs', icon: 'shield', view: safetyView },
+  { path: 'materiales', title: 'Materiales', icon: 'box', view: inventoryView },
+  { path: 'clientes', title: 'Clientes', icon: 'building', view: clientsView },
+  { path: 'equipo', title: 'Equipo', icon: 'users', view: teamView },
   { sep: true },
-  { path: 'ajustes', title: 'Ajustes', icon: '⚙️', view: settingsView },
+  { path: 'ajustes', title: 'Ajustes', icon: 'settings', view: settingsView },
 ];
 
 let viewEl = qs('#view');
@@ -56,9 +57,9 @@ function buildNav() {
   const { path } = parseHash();
   const links = ROUTES.map((r) => r.sep
     ? html`<div class="sep"></div>`
-    : html`<a href="#/${r.path}" class="${r.path === path ? 'active' : ''}"><span class="ico">${r.icon}</span>${r.title}</a>`);
+    : html`<a href="#/${r.path}" class="${r.path === path ? 'active' : ''}">${icon(r.icon, { size: 20 })}${r.title}</a>`);
   render(qs('#drawer-links'), links);
-  const tabs = ROUTES.filter((r) => r.tab).map((r) => html`<a href="#/${r.path}" class="${r.path === path ? 'active' : ''}"><span class="ico">${r.icon}</span>${r.title}</a>`);
+  const tabs = ROUTES.filter((r) => r.tab).map((r) => html`<a href="#/${r.path}" class="${r.path === path ? 'active' : ''}">${icon(r.icon, { size: 22 })}${r.title}</a>`);
   render(qs('#tabbar'), tabs);
   const p = getSettings().profile;
   qs('#drawer-user').textContent = p ? `${p.name} · ${ROLES.find(([k]) => k === p.role)?.[1] || p.role}` : '';
@@ -117,7 +118,7 @@ function renderOnboarding() {
         <div class="field"><label for="ob-role">Puesto</label>
           <select id="ob-role" name="role">${ROLES.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></div>
         <div class="field"><label for="ob-phone">Teléfono (opcional)</label><input id="ob-phone" name="phone" type="tel" placeholder="600 000 000" autocomplete="tel"></div>
-        <button class="btn accent block" type="submit">Empezar</button>
+        <button class="btn block" type="submit">Empezar</button>
       </form>
       <p class="center tiny muted">Los datos se guardan en este dispositivo. Para compartirlos con el equipo, activa la nube en Ajustes.</p>
     </div>`);
@@ -129,12 +130,13 @@ function renderOnboarding() {
     const profile = { id, name: v.name, role: v.role, phone: v.phone, color: colorFor(v.name) };
     saveSettings({ profile });
     await store.put('team', { id, name: v.name, role: v.role, phone: v.phone, color: profile.color, status: 'disponible' });
-    toast(`¡Hola, ${v.name}!`, 'ok');
+    toast(`Hola, ${v.name}`, 'ok');
     route();
   });
 }
 
 function bindShell() {
+  render(qs('#btn-menu'), icon('menu', { size: 22 }));
   qs('#btn-menu').addEventListener('click', () => {
     qs('#drawer').classList.toggle('open');
     qs('#scrim').classList.toggle('open');

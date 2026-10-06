@@ -1,5 +1,6 @@
 /* Inicio: resumen del día, clima, avisos y accesos rápidos. */
-import { html, rerender, on, todayKey, fmtLongDate, fmtTime, sortBy, fmtDuration } from '../ui.js';
+import { html, rerender, on, todayKey, fmtLongDate, fmtTime, sortBy, fmtDuration, sectionTitle } from '../ui.js';
+import { icon, weatherIcon } from '../icons.js';
 import { store } from '../db.js';
 import { hydratePhotos } from '../media.js';
 import { jobCard, activeJobs } from './jobs.js';
@@ -32,36 +33,40 @@ export default function homeView(ctx) {
     const active = activeEntry();
     const checklist = todayChecklist();
     const loc = currentLocation();
+    const wx = state.wx?.analysis;
     rerender(ctx.el, html`<div class="page">
-      <div class="row between mb"><div><h1 style="margin:0">${greet}, ${me.name.split(' ')[0]} 👋</h1><div class="muted" style="text-transform:capitalize">${fmtLongDate(new Date())}</div></div></div>
+      <div class="mb"><h1 style="margin:0">${greet}, ${me.name.split(' ')[0]}</h1><div class="muted small" style="text-transform:capitalize">${fmtLongDate(new Date())}</div></div>
 
       <div class="quick">
-        <a href="#/fotos?nueva=1"><span class="ico">📷</span>Foto</a>
-        <a href="#/notas?nueva=1"><span class="ico">📝</span>Nota</a>
-        <a href="#/trabajos?nuevo=1"><span class="ico">🧰</span>Trabajo</a>
-        <a href="#/partes"><span class="ico">⏱️</span>${active ? 'Fichado' : 'Fichar'}</a>
+        <a href="#/fotos?nueva=1">${icon('camera', { size: 22 })}Foto</a>
+        <a href="#/notas?nueva=1">${icon('note', { size: 22 })}Nota</a>
+        <a href="#/trabajos?nuevo=1">${icon('briefcase', { size: 22 })}Trabajo</a>
+        <a href="#/partes">${icon(active ? 'stop' : 'play', { size: 22 })}${active ? 'Fichado' : 'Fichar'}</a>
       </div>
 
-      ${active ? html`<div class="card tight" style="background:linear-gradient(135deg,#1f9d55,#116a9a);color:#fff"><div class="row between"><div><div class="small">⏱️ Fichado desde ${fmtTime(active.start)}${active.jobId ? ` · ${store.get('jobs', active.jobId)?.title || ''}` : ''}</div><div class="timer" id="home-timer" style="font-size:1.6rem">${fmtDuration(Date.now() - new Date(active.start))}</div></div><button class="btn small" style="background:#fff;color:#1a1a1a" id="home-stop">⏹ Parar</button></div></div>` : ''}
+      ${active ? html`<div class="card tight timer-card"><div class="row between"><div><div class="small muted">Fichado desde ${fmtTime(active.start)}${active.jobId ? ` · ${store.get('jobs', active.jobId)?.title || ''}` : ''}</div><div class="timer" id="home-timer" style="font-size:1.6rem">${fmtDuration(Date.now() - new Date(active.start))}</div></div><button class="btn small ghost" id="home-stop">${icon('stop', { size: 16 })} Parar</button></div></div>` : ''}
 
-      ${state.wx ? html`${semaforoCard(state.wx.analysis.decision, { link: true })}
-        <div class="card tight"><div class="row between"><span class="bold">🌦️ ${loc.name} · ${Math.round(state.wx.analysis.current.temperature_2m ?? 0)}° ${state.wx.analysis.current.info.icon}</span><span class="tiny muted">rachas ${Math.round(state.wx.analysis.current.wind_gusts_10m ?? 0)} km/h</span></div>
-          <div class="tiny muted mb">Probabilidad de lluvia próximas 12 h · ${state.wx.fromCache ? html`<span class="${state.wx.stale ? 'chip danger tiny' : ''}">⚠️ datos guardados a las ${fmtTime(state.wx.cachedAt)}</span>` : `actualizado ${fmtTime(state.wx.analysis.updatedAt)}`}</div>${rainBars(state.wx.analysis.hours, { count: 12 })}</div>`
-        : loc ? html`<div class="card tight muted small">${state.wxError ? `⚠️ Clima: ${state.wxError}` : 'Cargando el tiempo…'}</div>`
-        : html`<a class="card tight clickable" href="#/clima" style="display:block;text-decoration:none;color:inherit"><b>🌦️ Configura el clima</b><div class="muted small">Elige tu ubicación para ver aquí la probabilidad de lluvia y el semáforo de trabajo en altura.</div></a>`}
+      ${wx ? html`${semaforoCard(wx.decision, { link: true })}
+        <div class="card tight">
+          <div class="row between"><span class="row gap-s bold">${weatherIcon(wx.current.weather_code, { size: 20 })} ${loc.name} · ${Math.round(wx.current.temperature_2m ?? 0)}°</span><span class="tiny muted">rachas ${Math.round(wx.current.wind_gusts_10m ?? 0)} km/h</span></div>
+          <div class="tiny muted mb">Probabilidad de lluvia, próximas 12 h · ${state.wx.fromCache ? html`<span class="${state.wx.stale ? 'chip danger tiny' : ''}">datos guardados a las ${fmtTime(state.wx.cachedAt)}</span>` : `actualizado ${fmtTime(wx.updatedAt)}`}</div>
+          ${rainBars(wx.hours, { count: 12 })}
+        </div>`
+        : loc ? html`<div class="card tight muted small">${state.wxError ? `Clima no disponible: ${state.wxError}` : 'Cargando el tiempo…'}</div>`
+        : html`<a class="alert-card info" href="#/clima">${icon('weather', { size: 22 })}<div><b>Configura el clima</b><span class="small muted">Elige tu ubicación para ver aquí la lluvia prevista y el semáforo de trabajo en altura.</span></div></a>`}
 
-      ${!checklist ? html`<a class="card tight clickable" href="#/seguridad" style="display:block;text-decoration:none;color:inherit;border-left:5px solid var(--warn)"><b>🦺 Checklist pre-uso pendiente</b><div class="muted small">Firma la comprobación de seguridad antes de subir.</div></a>` : ''}
-      ${epis.length ? html`<a class="card tight clickable" href="#/seguridad/epis" style="display:block;text-decoration:none;color:inherit;border-left:5px solid var(--danger)"><b>⚠️ ${epis.length} EPI${epis.length > 1 ? 's' : ''} por revisar o caducar</b><div class="muted small ellipsis">${epis.map((e) => e.name).join(', ')}</div></a>` : ''}
-      ${low.length ? html`<a class="card tight clickable" href="#/materiales" style="display:block;text-decoration:none;color:inherit;border-left:5px solid var(--warn)"><b>🛒 ${low.length} material${low.length > 1 ? 'es' : ''} bajo mínimo</b><div class="muted small ellipsis">${low.map((m) => m.name).join(', ')}</div></a>` : ''}
+      ${!checklist ? html`<a class="alert-card warn" href="#/seguridad">${icon('shield', { size: 22 })}<div><b>Checklist pre-uso pendiente</b><span class="small muted">Firma la comprobación de seguridad antes de subir.</span></div></a>` : ''}
+      ${epis.length ? html`<a class="alert-card danger" href="#/seguridad/epis">${icon('alert', { size: 22 })}<div class="grow" style="min-width:0"><b>${epis.length} EPI${epis.length > 1 ? 's' : ''} por revisar o caducar</b><span class="small muted ellipsis" style="display:block">${epis.map((e) => e.name).join(', ')}</span></div></a>` : ''}
+      ${low.length ? html`<a class="alert-card warn" href="#/materiales">${icon('cart', { size: 22 })}<div class="grow" style="min-width:0"><b>${low.length} material${low.length > 1 ? 'es' : ''} bajo mínimo</b><span class="small muted ellipsis" style="display:block">${low.map((m) => m.name).join(', ')}</span></div></a>` : ''}
 
-      <div class="card-title mt"><h2>📅 Hoy</h2><a class="small" href="#/agenda">Agenda →</a></div>
-      ${events.length || todayJobs.length ? html`<div class="list mb">${events.map(eventItem)}${todayJobs.map(jobCard)}</div>` : html`<p class="muted small">Nada planificado para hoy.</p>`}
+      ${sectionTitle('Hoy', '#/agenda', 'Agenda')}
+      ${events.length || todayJobs.length ? html`<div class="list">${events.map(eventItem)}${todayJobs.map(jobCard)}</div>` : html`<p class="muted small">Nada planificado para hoy.</p>`}
 
-      ${mine.length ? html`<div class="card-title"><h2>🧰 Mis trabajos activos (${mine.length})</h2><a class="small" href="#/trabajos">Todos →</a></div><div class="list mb">${mine.slice(0, 4).map(jobCard)}</div>` : ''}
+      ${mine.length ? html`${sectionTitle(`Mis trabajos activos (${mine.length})`, '#/trabajos', 'Todos')}<div class="list">${mine.slice(0, 4).map(jobCard)}</div>` : ''}
 
-      ${notes.length ? html`<div class="card-title"><h2>📝 Notas</h2><a class="small" href="#/notas">Todas →</a></div>${notes.map((n) => noteCard(n, { compact: true }))}` : ''}
+      ${notes.length ? html`${sectionTitle('Notas', '#/notas', 'Todas')}${notes.map((n) => noteCard(n, { compact: true }))}` : ''}
 
-      <div class="card-title mt"><h2>💬 Último en el muro</h2><a class="small" href="#/muro">Ver muro →</a></div>
+      ${sectionTitle('Último en el muro', '#/muro', 'Ver muro')}
       ${posts.length ? posts.map((p) => postCard(p, { compact: true })) : html`<p class="muted small">Sin publicaciones todavía.</p>`}
     </div>`);
     hydratePhotos(ctx.el);
@@ -75,7 +80,7 @@ export default function homeView(ctx) {
   if (loc) loadAnalysis(loc).then((wx) => { state.wx = wx; draw(); }).catch((err) => { state.wxError = err.message; draw(); });
 
   on(ctx.el, 'click', '#home-stop', async () => { await clockOut(); });
-  on(ctx.el, 'click', '[data-event]', (ev, el) => { if (!ev.target.closest('a')) location.hash = `#/agenda?dia=${today}`; });
+  on(ctx.el, 'click', '[data-event]', (ev) => { if (!ev.target.closest('a')) location.hash = `#/agenda?dia=${today}`; });
   bindPostActions(ctx.el);
   bindNoteCards(ctx.el);
   return () => { disposed = true; clearInterval(timer); };

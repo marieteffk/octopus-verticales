@@ -2,6 +2,7 @@
 import {
   html, raw, rerender, on, toast, confirmDialog, pickFiles, relTime, emptyState, sortBy, avatar, selectOptions,
 } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, person } from '../db.js';
 import { addPhotos, hydratePhotos, sharePhotos } from '../media.js';
 import { openLightbox } from './photos.js';
@@ -22,19 +23,20 @@ export function postCard(post, { compact = false } = {}) {
   const photos = (post.photoIds || []).map((id) => store.get('photos', id)).filter(Boolean);
   const job = store.get('jobs', post.jobId);
   const showComments = openComments.has(post.id) && !compact;
+  const liked = likes.includes(me);
   return html`<div class="card post" data-post="${post.id}">
-    <div class="head">${avatar(author)}<div class="grow"><div class="bold">${author.name}</div><div class="tiny muted">${relTime(post.createdAt)}${job ? html` · <a href="#/trabajos/${job.id}">🧰 ${job.title}</a>` : ''}</div></div>
-      ${post.authorId === me && !compact ? html`<button class="icon-btn" data-post-del="${post.id}" aria-label="Eliminar">🗑️</button>` : ''}</div>
+    <div class="head">${avatar(author)}<div class="grow"><div class="bold">${author.name}</div><div class="tiny muted">${relTime(post.createdAt)}${job ? html` · <a href="#/trabajos/${job.id}">${job.title}</a>` : ''}</div></div>
+      ${post.authorId === me && !compact ? html`<button class="icon-btn" data-post-del="${post.id}" aria-label="Eliminar">${icon('trash', { size: 18 })}</button>` : ''}</div>
     ${post.text ? html`<div class="text">${linkify(post.text)}</div>` : ''}
     ${photos.length ? html`<div class="media n${Math.min(photos.length, 4)}">${photos.slice(0, 4).map((p, i) => html`<img data-photo="${p.id}" data-thumb="1" data-post-photo="${post.id}:${i}" alt="${p.caption || ''}" loading="lazy">`)}</div>
       ${photos.length > 4 ? html`<div class="tiny muted">+${photos.length - 4} fotos más</div>` : ''}` : ''}
     ${compact ? '' : html`<div class="actions">
-      <button data-like="${post.id}" class="${likes.includes(me) ? 'active' : ''}">${likes.includes(me) ? '❤️' : '🤍'} ${likes.length || ''}</button>
-      <button data-comments="${post.id}" class="${showComments ? 'active' : ''}">💬 ${comments.length || ''}</button>
-      ${photos.length ? html`<button data-share-post="${post.id}">📤</button>` : ''}
+      <button data-like="${post.id}" class="${liked ? 'liked' : ''}">${icon('heart', { size: 18 })} ${likes.length || ''}</button>
+      <button data-comments="${post.id}" class="${showComments ? 'active' : ''}">${icon('comment', { size: 18 })} ${comments.length || ''}</button>
+      ${photos.length ? html`<button data-share-post="${post.id}" aria-label="Compartir">${icon('share', { size: 18 })}</button>` : ''}
     </div>
     ${showComments ? html`<div class="comments">
-      ${comments.map((c) => html`<div class="comment">${avatar(person(c.authorId), 'small')}<div class="bubble"><span class="bold small">${person(c.authorId).name}</span> <span class="tiny muted">${relTime(c.createdAt)}</span><div class="pre">${c.text}</div></div>${c.authorId === me ? html`<button class="icon-btn" data-comment-del="${c.id}" aria-label="Eliminar">✕</button>` : ''}</div>`)}
+      ${comments.map((c) => html`<div class="comment">${avatar(person(c.authorId), 'small')}<div class="bubble"><span class="bold small">${person(c.authorId).name}</span> <span class="tiny muted">${relTime(c.createdAt)}</span><div class="pre">${c.text}</div></div>${c.authorId === me ? html`<button class="icon-btn" data-comment-del="${c.id}" aria-label="Eliminar">${icon('close', { size: 16 })}</button>` : ''}</div>`)}
       <form class="row" data-comment-form="${post.id}"><input class="input grow" name="text" placeholder="Escribe un comentario…" autocomplete="off" required><button class="btn small">Enviar</button></form>
     </div>` : ''}`}
   </div>`;
@@ -49,15 +51,15 @@ export default function feedView(ctx) {
       <div class="page">
         <div class="card compose">
           <div class="row" style="align-items:flex-start">${avatar(me)}<textarea id="compose-text" class="input grow" placeholder="¿Qué está pasando en la obra, ${me?.name?.split(' ')[0] || 'equipo'}?">${compose.text}</textarea></div>
-          ${compose.previews.length ? html`<div class="thumbs mt">${compose.previews.map((u, i) => html`<div class="thumb"><img src="${u}" alt=""><button type="button" data-rm-preview="${i}" aria-label="Quitar">✕</button></div>`)}</div>` : ''}
-          <div class="row wrap mt gap-s">
-            <button class="btn small ghost" id="compose-camera">📷</button>
-            <button class="btn small ghost" id="compose-gallery">🖼️</button>
-            <select class="input small grow" id="compose-job" style="min-height:36px;padding:.3rem .5rem">${selectOptions([['', 'Sin trabajo asociado'], ...jobs.map((j) => [j.id, `🧰 ${j.title}`])], compose.jobId)}</select>
-            <button class="btn accent small" id="compose-send" ${compose.text.trim() || compose.files.length ? '' : raw('disabled')}>Publicar</button>
+          ${compose.previews.length ? html`<div class="thumbs mb">${compose.previews.map((u, i) => html`<div class="thumb"><img src="${u}" alt=""><button type="button" data-rm-preview="${i}" aria-label="Quitar">${icon('close', { size: 14 })}</button></div>`)}</div>` : ''}
+          <div class="row wrap gap-s tools">
+            <button class="icon-btn" id="compose-camera" aria-label="Hacer foto">${icon('camera')}</button>
+            <button class="icon-btn" id="compose-gallery" aria-label="Adjuntar imagen">${icon('image')}</button>
+            <select class="input small grow" id="compose-job" style="min-height:34px;padding:.3rem .5rem">${selectOptions([['', 'Sin trabajo asociado'], ...jobs.map((j) => [j.id, j.title])], compose.jobId)}</select>
+            <button class="btn small" id="compose-send" ${compose.text.trim() || compose.files.length ? '' : raw('disabled')}>Publicar</button>
           </div>
         </div>
-        ${posts.length ? posts.map((p) => postCard(p)) : emptyState('💬', 'Todavía no hay publicaciones. ¡Sé el primero en contar algo al equipo!')}
+        ${posts.length ? posts.map((p) => postCard(p)) : emptyState('feed', 'Todavía no hay publicaciones. Cuéntale algo al equipo.')}
       </div>`);
     hydratePhotos(ctx.el);
   };

@@ -1,11 +1,15 @@
 /* Agenda: planificación mensual de trabajos, visitas y ausencias del equipo. */
 import {
-  html, raw, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, todayKey, dateKey, fmtLongDate, emptyState, sortBy, avatar,
+  html, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, todayKey, dateKey, fmtLongDate, emptyState, sortBy, avatar,
 } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, person } from '../db.js';
 import { statusChip } from './jobs.js';
 
-export const EVENT_TYPES = [['trabajo', '🧰 Trabajo en obra'], ['visita', '👀 Visita / medición'], ['presupuesto', '💶 Entrega de presupuesto'], ['ausencia', '🏖️ Ausencia / vacaciones'], ['formacion', '🎓 Formación / revisión EPI'], ['otro', '📌 Otro']];
+export const EVENT_TYPES = [
+  ['trabajo', 'Trabajo en obra', 'briefcase'], ['visita', 'Visita / medición', 'eye'], ['presupuesto', 'Entrega de presupuesto', 'euro'],
+  ['ausencia', 'Ausencia / vacaciones', 'sun'], ['formacion', 'Formación / revisión EPI', 'shield'], ['otro', 'Otro', 'pushpin'],
+];
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 export function eventsOn(day) {
@@ -23,8 +27,8 @@ export function openEventForm(event = null, { date = todayKey(), jobId = null } 
   const m = modal({
     title: event ? 'Editar evento' : 'Nuevo evento',
     body: html`<form id="ev-form">
-      <div class="field"><label>Tipo</label><select name="type">${selectOptions(EVENT_TYPES, event?.type || (job ? 'trabajo' : 'trabajo'))}</select></div>
-      <div class="field"><label>Trabajo</label><select name="jobId">${selectOptions([['', '— Sin trabajo —'], ...jobs.map((j) => [j.id, j.title])], event?.jobId || jobId || '')}</select></div>
+      <div class="field"><label>Tipo</label><select name="type">${selectOptions(EVENT_TYPES.map(([k, l]) => [k, l]), event?.type || 'trabajo')}</select></div>
+      <div class="field"><label>Trabajo</label><select name="jobId">${selectOptions([['', 'Sin trabajo'], ...jobs.map((j) => [j.id, j.title])], event?.jobId || jobId || '')}</select></div>
       <div class="field"><label>Título</label><input name="title" value="${event?.title || (job ? job.title : '')}" placeholder="Ej. Sellado fachada norte"></div>
       <div class="grid-3">
         <div class="field"><label>Fecha</label><input name="date" type="date" value="${event?.date || date}" required></div>
@@ -41,7 +45,7 @@ export function openEventForm(event = null, { date = todayKey(), jobId = null } 
         const form = api.el.querySelector('#ev-form');
         if (!form.reportValidity()) return false;
         const v = formValues(form);
-        const title = v.title || store.get('jobs', v.jobId)?.title || EVENT_TYPES.find(([k]) => k === v.type)?.[1].slice(2) || 'Evento';
+        const title = v.title || store.get('jobs', v.jobId)?.title || EVENT_TYPES.find(([k]) => k === v.type)?.[1] || 'Evento';
         await store.put('events', { ...(event || {}), ...v, title, jobId: v.jobId || null, memberIds: [...selected] });
         toast('Evento guardado', 'ok');
         return true;
@@ -61,8 +65,9 @@ export function eventItem(e) {
   const type = EVENT_TYPES.find(([k]) => k === e.type);
   return html`<div class="item clickable" data-event="${e.id}">
     <div class="meta" style="text-align:left;min-width:3.2rem"><b>${e.start || '—'}</b><br><span class="tiny">${e.end || ''}</span></div>
-    <div class="body"><div class="title ellipsis">${type ? type[1].slice(0, 2) : '📌'} ${e.title}</div>
-      <div class="sub ellipsis">${job ? html`<a href="#/trabajos/${job.id}">${job.title}</a>${job.address ? ` · ${job.address}` : ''}` : (e.notes || '')}</div></div>
+    <span class="lead-icon">${icon(type?.[2] || 'pushpin')}</span>
+    <div class="body"><div class="title ellipsis">${e.title}</div>
+      <div class="sub ellipsis">${job ? html`<a href="#/trabajos/${job.id}">${job.title}</a>${job.address ? ` · ${job.address}` : ''}` : (e.notes || type?.[1] || '')}</div></div>
     <div class="row gap-s">${(e.memberIds || []).slice(0, 3).map((id) => avatar(person(id), 'small'))}</div>
   </div>`;
 }
@@ -81,22 +86,22 @@ export default function calendarView(ctx) {
     const me = store.profile?.id;
     rerender(ctx.el, html`<div class="page">
       <div class="card tight">
-        <div class="cal-head"><button class="icon-btn" id="cal-prev" aria-label="Mes anterior">‹</button><h2 style="margin:0;text-transform:capitalize">${MONTHS[mo - 1]} ${y}</h2><button class="icon-btn" id="cal-next" aria-label="Mes siguiente">›</button></div>
+        <div class="cal-head"><button class="icon-btn" id="cal-prev" aria-label="Mes anterior">${icon('chevron-left')}</button><h2 style="margin:0;text-transform:capitalize">${MONTHS[mo - 1]} ${y}</h2><button class="icon-btn" id="cal-next" aria-label="Mes siguiente">${icon('chevron-right')}</button></div>
         <div class="cal-grid">
           ${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => html`<div class="dow">${d}</div>`)}
           ${cells.map((d) => { const k = dateKey(d); const n = eventsOn(k).length + jobsOn(k).length; const mine = eventsOn(k).some((e) => (e.memberIds || []).includes(me));
-            return html`<div class="cal-cell ${d.getMonth() !== mo - 1 ? 'other' : ''} ${k === today ? 'today' : ''} ${k === state.selected ? 'selected' : ''}" data-date="${k}">${d.getDate()}${n ? html`<div class="dots">${Array.from({ length: Math.min(n, 3) }, () => html`<i style="${mine ? '' : 'opacity:.6'}"></i>`)}</div>` : ''}</div>`; })}
+            return html`<div class="cal-cell ${d.getMonth() !== mo - 1 ? 'other' : ''} ${k === today ? 'today' : ''} ${k === state.selected ? 'selected' : ''}" data-date="${k}">${d.getDate()}${n ? html`<div class="dots">${Array.from({ length: Math.min(n, 3) }, () => html`<i style="${mine ? '' : 'opacity:.5'}"></i>`)}</div>` : ''}</div>`; })}
         </div>
-        <div class="row between mt"><button class="btn small ghost" id="cal-today">Hoy</button><span class="tiny muted">● eventos del día</span></div>
+        <div class="row between mt"><button class="btn small ghost" id="cal-today">Hoy</button><span class="tiny muted">Los puntos indican eventos del día</span></div>
       </div>
-      <h2 style="text-transform:capitalize">${fmtLongDate(state.selected + 'T00:00:00')}</h2>
+      <h2 style="text-transform:capitalize;margin-top:1rem">${fmtLongDate(state.selected + 'T00:00:00')}</h2>
       <div class="list">
         ${evs.map(eventItem)}
-        ${jobs.map((j) => html`<a class="item clickable" href="#/trabajos/${j.id}"><div class="meta" style="text-align:left;min-width:3.2rem">🧰</div><div class="body"><div class="title ellipsis">${j.title}</div><div class="sub">Trabajo planificado ${j.startDate}${j.endDate && j.endDate !== j.startDate ? ` → ${j.endDate}` : ''}</div></div>${statusChip(j.status)}</a>`)}
-        ${!evs.length && !jobs.length ? emptyState('📅', 'Nada planificado este día.') : ''}
+        ${jobs.map((j) => html`<a class="item clickable" href="#/trabajos/${j.id}"><span class="lead-icon">${icon('briefcase')}</span><div class="body"><div class="title ellipsis">${j.title}</div><div class="sub">Trabajo planificado ${j.startDate}${j.endDate && j.endDate !== j.startDate ? ` → ${j.endDate}` : ''}</div></div>${statusChip(j.status)}</a>`)}
+        ${!evs.length && !jobs.length ? emptyState('calendar', 'Nada planificado este día.') : ''}
       </div>
     </div>
-    <button class="fab" id="fab-event" aria-label="Nuevo evento">+</button>`);
+    <button class="fab" id="fab-event" aria-label="Nuevo evento">${icon('plus', { size: 26 })}</button>`);
   };
   ctx.watch(['events', 'jobs', 'team'], draw);
   draw();

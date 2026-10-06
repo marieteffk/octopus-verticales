@@ -1,7 +1,8 @@
 /* Partes de trabajo y control horario: fichar entrada/salida por trabajo, resumen semanal y exportación CSV. */
 import {
-  html, raw, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, todayKey, dateKey, addDays, fmtTime, fmtDate, fmtDuration, hoursLabel, nowISO, emptyState, sortBy, download, avatar,
+  html, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, todayKey, dateKey, addDays, fmtTime, fmtDate, fmtDuration, hoursLabel, nowISO, emptyState, sortBy, download, avatar, iconBtn,
 } from '../ui.js';
+import { icon } from '../icons.js';
 import { store, person, personName } from '../db.js';
 import { activeJobs } from './jobs.js';
 
@@ -46,7 +47,7 @@ function manualEntryDialog(entry = null) {
     title: entry ? 'Editar fichaje' : 'Fichaje manual',
     body: html`<form id="ts-form">
       ${members.length > 1 ? html`<div class="field"><label>Trabajador</label><select name="memberId">${selectOptions(members.map((m) => [m.id, m.name]), entry?.memberId || store.profile.id)}</select></div>` : ''}
-      <div class="field"><label>Trabajo</label><select name="jobId">${selectOptions([['', '— Sin trabajo (taller, desplazamiento…) —'], ...jobs.map((j) => [j.id, j.title])], entry?.jobId || '')}</select></div>
+      <div class="field"><label>Trabajo</label><select name="jobId">${selectOptions([['', 'Sin trabajo (taller, desplazamiento…)'], ...jobs.map((j) => [j.id, j.title])], entry?.jobId || '')}</select></div>
       <div class="grid-3">
         <div class="field"><label>Fecha</label><input name="date" type="date" value="${d}" required></div>
         <div class="field"><label>Entrada</label><input name="startT" type="time" value="${entry ? fmtTime(entry.start) : '08:00'}" required></div>
@@ -90,15 +91,15 @@ export default function timesheetsView(ctx) {
     const byDay = {};
     for (const t of entries) (byDay[t.date] = byDay[t.date] || []).push(t);
     rerender(ctx.el, html`<div class="page">
-      <div class="card" style="background:${active ? 'linear-gradient(135deg,#1f9d55,#116a9a)' : 'var(--surface)'};color:${active ? '#fff' : 'inherit'}">
+      <div class="card ${active ? 'timer-card' : ''}">
         ${active ? html`
-          <div class="small" style="opacity:.9">Fichado desde las ${fmtTime(active.start)}${active.jobId ? html` en <b>${store.get('jobs', active.jobId)?.title || 'trabajo'}</b>` : ''}</div>
+          <div class="small muted">Fichado desde las ${fmtTime(active.start)}${active.jobId ? html` en <b>${store.get('jobs', active.jobId)?.title || 'trabajo'}</b>` : ''}</div>
           <div class="timer" id="ts-timer">${fmtDuration(duration(active))}</div>
-          <button class="btn block" style="background:#fff;color:#1a1a1a" id="ts-stop">⏹ Parar y guardar</button>`
+          ${iconBtn('stop', 'Parar y guardar', 'block', 'id="ts-stop"')}`
         : html`
           <h2>Fichar</h2>
-          <div class="field"><label>¿En qué trabajo?</label><select class="input" id="ts-job">${selectOptions([['', '— Sin trabajo (taller, desplazamiento…) —'], ...jobs.map((j) => [j.id, j.title])], state.job)}</select></div>
-          <button class="btn ok block" id="ts-start">▶ Empezar ahora</button>`}
+          <div class="field"><label>¿En qué trabajo?</label><select class="input" id="ts-job">${selectOptions([['', 'Sin trabajo (taller, desplazamiento…)'], ...jobs.map((j) => [j.id, j.title])], state.job)}</select></div>
+          ${iconBtn('play', 'Empezar ahora', 'ok block', 'id="ts-start"')}`}
       </div>
       <div class="kpis mb">
         <div class="kpi"><div class="v">${hoursLabel(todayMs)}</div><div class="k">Hoy (tú)</div></div>
@@ -106,16 +107,16 @@ export default function timesheetsView(ctx) {
         <div class="kpi"><div class="v">${entries.filter((t) => t.end).length}</div><div class="k">Fichajes</div></div>
       </div>
       <div class="row between mb wrap gap-s">
-        <div class="row gap-s"><button class="icon-btn" id="ts-prev" aria-label="Semana anterior">‹</button><b>${fmtDate(days[0])} – ${fmtDate(days[6])}</b><button class="icon-btn" id="ts-next" aria-label="Semana siguiente">›</button></div>
-        <div class="row gap-s">${canSeeAll ? html`<button class="btn small ghost" id="ts-all">${state.all ? '👤 Solo yo' : '👥 Todo el equipo'}</button>` : ''}<button class="btn small ghost" id="ts-manual">+ Manual</button><button class="btn small ghost" id="ts-csv">⬇ CSV</button></div>
+        <div class="row gap-s"><button class="icon-btn" id="ts-prev" aria-label="Semana anterior">${icon('chevron-left')}</button><b>${fmtDate(days[0])} – ${fmtDate(days[6])}</b><button class="icon-btn" id="ts-next" aria-label="Semana siguiente">${icon('chevron-right')}</button></div>
+        <div class="row gap-s">${canSeeAll ? iconBtn(state.all ? 'user' : 'users', state.all ? 'Solo yo' : 'Todo el equipo', 'small ghost', 'id="ts-all"') : ''}${iconBtn('plus', 'Manual', 'small ghost', 'id="ts-manual"')}${iconBtn('download', 'CSV', 'small ghost', 'id="ts-csv"')}</div>
       </div>
       ${entries.length ? Object.entries(byDay).sort((a, b) => b[0].localeCompare(a[0])).map(([day, list]) => html`
-        <div class="muted small bold" style="margin:.6rem 0 .3rem;text-transform:capitalize">${fmtDate(day + 'T00:00:00', { weekday: 'long', day: 'numeric', month: 'short' })} · ${hoursLabel(list.filter((t) => t.end).reduce((s, t) => s + duration(t), 0))}</div>
+        <div class="muted tiny bold" style="margin:.6rem 0 .3rem;text-transform:uppercase;letter-spacing:.05em">${fmtDate(day + 'T00:00:00', { weekday: 'long', day: 'numeric', month: 'short' })} · ${hoursLabel(list.filter((t) => t.end).reduce((s, t) => s + duration(t), 0))}</div>
         <div class="list">${list.map((t) => html`<div class="item clickable" data-entry="${t.id}">
           ${state.all ? avatar(person(t.memberId), 'small') : ''}
           <div class="body"><div class="title ellipsis">${store.get('jobs', t.jobId)?.title || html`<span class="muted">Sin trabajo</span>`}</div><div class="sub">${fmtTime(t.start)} – ${t.end ? fmtTime(t.end) : html`<span class="chip ok tiny">en curso</span>`}${t.notes ? ` · ${t.notes}` : ''}${state.all ? ` · ${personName(t.memberId)}` : ''}</div></div>
           <div class="meta"><b>${t.end ? hoursLabel(duration(t)) : ''}</b></div></div>`)}</div>`)
-        : emptyState('⏱️', 'Sin fichajes esta semana.')}
+        : emptyState('clock', 'Sin fichajes esta semana.')}
     </div>`);
     clearInterval(timer);
     if (active) timer = setInterval(() => { const el = ctx.el.querySelector('#ts-timer'); if (el) el.textContent = fmtDuration(duration(active)); }, 1000);

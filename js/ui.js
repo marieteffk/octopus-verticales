@@ -1,4 +1,5 @@
 /* Utilidades de interfaz: plantillas seguras, modales, toasts, fechas y helpers DOM. */
+import { icon } from './icons.js';
 
 export class Raw {
   constructor(html) { this.html = html; }
@@ -175,7 +176,7 @@ export function modal({ title, body, actions = [], onOpen, wide = false, closabl
     <div class="modal" role="dialog" aria-modal="true" ${wide ? raw('style="max-width:860px"') : ''}>
       <div class="modal-head">
         <h2>${title}</h2>
-        ${closable ? html`<button class="icon-btn" data-close aria-label="Cerrar">✕</button>` : ''}
+        ${closable ? html`<button class="icon-btn" data-close aria-label="Cerrar">${icon('close')}</button>` : ''}
       </div>
       <div class="modal-body">${body}</div>
       ${actions.length ? html`<div class="modal-actions">${actionsHtml}</div>` : ''}
@@ -317,8 +318,21 @@ export function waLink(phone, text = '') {
   return `https://wa.me/${intl}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 }
 
-export function emptyState(icon, text, action = '') {
-  return html`<div class="empty"><div class="ico">${icon}</div><div>${text}</div>${action ? html`<div class="mt">${action}</div>` : ''}</div>`;
+export function emptyState(iconName, text, action = '') {
+  return html`<div class="empty"><div class="ico">${icon(iconName, { size: 44 })}</div><div>${text}</div>${action ? html`<div class="mt">${action}</div>` : ''}</div>`;
+}
+
+export function searchBox(id, placeholder, value = '') {
+  return html`<div class="search">${icon('search', { size: 18 })}<input id="${id}" type="search" placeholder="${placeholder}" value="${value}" autocomplete="off"></div>`;
+}
+
+/** Botón con icono y texto: iconBtn('edit', 'Editar', 'small ghost', 'id="x"') */
+export function iconBtn(name, label, cls = '', attrs = '') {
+  return html`<button class="btn ${cls}" type="button" ${raw(attrs)}>${icon(name, { size: 16 })}${label ? html`<span>${label}</span>` : ''}</button>`;
+}
+
+export function sectionTitle(title, linkHref = '', linkLabel = 'Ver todo') {
+  return html`<div class="section-title"><h2>${title}</h2>${linkHref ? html`<a href="${linkHref}">${linkLabel}</a>` : ''}</div>`;
 }
 
 export function navigate(hash) { location.hash = hash; }

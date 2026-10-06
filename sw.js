@@ -1,7 +1,7 @@
 /* Service worker: precaché versionada y atómica de la app (offline) + caché acotada para la API del tiempo.
    Al publicar una versión nueva, sube APP_VERSION: el navegador detecta el cambio, descarga todos los
    ficheros de golpe en una caché nueva y avisa al usuario. Así nunca se mezclan módulos de dos versiones. */
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.1.0';
 const STATIC_CACHE = `ov-static-${APP_VERSION}`;
 const API_CACHE = 'ov-api-v1';
 const API_MAX_AGE_MS = 3 * 60 * 60 * 1000;
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   './css/app.css',
   './js/app.js',
   './js/ui.js',
+  './js/icons.js',
   './js/db.js',
   './js/cloud.js',
   './js/media.js',

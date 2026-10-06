@@ -1,5 +1,6 @@
 /* Materiales e inventario: stock por ubicación (almacén / furgonetas), mínimos y lista de compra. */
-import { html, rerender, on, modal, toast, confirmDialog, formValues, selectOptions, emptyState, sortBy, waLink } from '../ui.js';
+import { html, rerender, on, modal, toast, confirmDialog, formValues, emptyState, sortBy, waLink, searchBox, iconBtn } from '../ui.js';
+import { icon } from '../icons.js';
 import { store } from '../db.js';
 
 const DEFAULT_LOCATIONS = ['Almacén', 'Furgoneta 1', 'Furgoneta 2'];
@@ -53,22 +54,22 @@ export default function inventoryView(ctx) {
     if (state.q) { const q = state.q.toLowerCase(); list = list.filter((m) => [m.name, m.supplier, m.location, m.notes].join(' ').toLowerCase().includes(q)); }
     const low = lowStock();
     rerender(ctx.el, html`<div class="page">
-      ${low.length ? html`<div class="card" style="border-left:5px solid var(--warn)">
-        <div class="card-title"><h2>🛒 Lista de compra (${low.length})</h2><button class="btn small ghost" id="inv-share-list">📤 Enviar</button></div>
+      ${low.length ? html`<div class="card" style="border-left:4px solid var(--warn)">
+        <div class="card-title"><h2 class="row gap-s">${icon('cart', { cls: 'muted' })}Lista de compra (${low.length})</h2>${iconBtn('share', 'Enviar', 'small ghost', 'id="inv-share-list"')}</div>
         ${low.map((m) => html`<div class="row between small" style="padding:.2rem 0"><span>${m.name}</span><b>faltan ${(m.min - (m.qty || 0)).toLocaleString('es-ES')} ${m.unit || ''}</b></div>`)}
       </div>` : ''}
-      <div class="search"><input id="inv-q" placeholder="Buscar material…" value="${state.q}"></div>
+      ${searchBox('inv-q', 'Buscar material…', state.q)}
       <div class="chips scroll mb">
         <span class="chip pick ${!state.loc && !state.onlyLow ? 'active' : ''}" data-loc="">Todo</span>
-        <span class="chip pick ${state.onlyLow ? 'active' : ''}" id="inv-low">⚠️ Bajo mínimo</span>
+        <span class="chip pick ${state.onlyLow ? 'active' : ''}" id="inv-low">Bajo mínimo</span>
         ${locations().map((l) => html`<span class="chip pick ${state.loc === l ? 'active' : ''}" data-loc="${l}">${l}</span>`)}
       </div>
       ${list.length ? html`<div class="list">${list.map((m) => { const isLow = m.min != null && (m.qty || 0) < m.min;
         return html`<div class="item" data-mat="${m.id}">
-          <div class="body clickable" data-open="${m.id}"><div class="title">${m.name} ${isLow ? html`<span class="chip danger tiny">bajo</span>` : ''}</div><div class="sub">${[m.location, m.min != null ? `mín. ${m.min}` : '', m.supplier].filter(Boolean).join(' · ')}</div></div>
-          <div class="stepper"><button data-dec="${m.id}" aria-label="Restar">−</button><span>${Number(m.qty || 0).toLocaleString('es-ES')}<span class="tiny muted"> ${m.unit || ''}</span></span><button data-inc="${m.id}" aria-label="Sumar">+</button></div>
-        </div>`; })}</div>` : emptyState('📦', 'Sin materiales. Añade lo que lleváis en las furgonetas y el almacén.')}
-    </div><button class="fab" id="fab-mat" aria-label="Nuevo material">+</button>`);
+          <div class="body clickable" data-open="${m.id}"><div class="title row gap-s">${m.name} ${isLow ? html`<span class="chip danger tiny">bajo mínimo</span>` : ''}</div><div class="sub">${[m.location, m.min != null ? `mín. ${m.min}` : '', m.supplier].filter(Boolean).join(' · ')}</div></div>
+          <div class="stepper"><button data-dec="${m.id}" aria-label="Restar">${icon('minus', { size: 16 })}</button><span>${Number(m.qty || 0).toLocaleString('es-ES')}<span class="tiny muted"> ${m.unit || ''}</span></span><button data-inc="${m.id}" aria-label="Sumar">${icon('plus', { size: 16 })}</button></div>
+        </div>`; })}</div>` : emptyState('box', 'Sin materiales. Añade lo que lleváis en las furgonetas y el almacén.')}
+    </div><button class="fab" id="fab-mat" aria-label="Nuevo material">${icon('plus', { size: 26 })}</button>`);
   };
   ctx.watch(['materials'], draw);
   draw();
@@ -81,7 +82,7 @@ export default function inventoryView(ctx) {
   on(ctx.el, 'click', '[data-inc]', (ev, el) => adjust(el.dataset.inc, 1));
   on(ctx.el, 'click', '[data-dec]', (ev, el) => adjust(el.dataset.dec, -1));
   on(ctx.el, 'click', '#inv-share-list', async () => {
-    const text = `🛒 Lista de compra Octopus Verticales\n${lowStock().map((m) => `• ${m.name}: ${(m.min - (m.qty || 0)).toLocaleString('es-ES')} ${m.unit || ''}${m.supplier ? ` (${m.supplier})` : ''}`).join('\n')}`;
+    const text = `Lista de compra Octopus Verticales\n${lowStock().map((m) => `- ${m.name}: ${(m.min - (m.qty || 0)).toLocaleString('es-ES')} ${m.unit || ''}${m.supplier ? ` (${m.supplier})` : ''}`).join('\n')}`;
     if (navigator.share) { try { await navigator.share({ text }); return; } catch { /* cancelado */ } }
     window.open(waLink('', text), '_blank');
   });
