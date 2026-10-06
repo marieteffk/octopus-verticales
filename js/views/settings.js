@@ -3,7 +3,7 @@ import { html, raw, render, on, toast, confirmDialog, formValues, selectOptions,
 import { store, getSettings, saveSettings, DEFAULT_SETTINGS, ROLES } from '../db.js';
 import { cloud } from '../cloud.js';
 
-const REPO_URL = 'https://github.com/__GITHUB_USER__/octopus-verticales';
+const REPO_URL = 'https://github.com/marieteffk/octopus-verticales';
 
 export default function settingsView(ctx) {
   const draw = () => {
