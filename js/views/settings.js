@@ -132,7 +132,10 @@ export default function settingsView(ctx) {
       } catch (err) { toast(`No se pudo conectar: ${err.message}`, 'error'); }
     }
     if (f.id === 'f-login') {
+      const btn = f.querySelector('button');
+      btn.disabled = true;
       try { await cloud.signIn(v.email, v.password); toast('Sesión iniciada', 'ok'); } catch (err) { toast(err.message === 'Invalid login credentials' ? 'Email o contraseña incorrectos' : err.message, 'error'); }
+      btn.disabled = false;
     }
   });
   on(ctx.el, 'click', '#cloud-signup', async () => {

@@ -26,22 +26,33 @@ export async function locateByGPS() {
   });
 }
 
+const FRESH_MS = 15 * 60 * 1000;      // reutiliza la descarga durante 15 min
+const MAX_AGE_MS = 3 * 60 * 60 * 1000; // más de 3 h sin actualizar: el semáforo no es fiable
+
 /** Carga (con caché) y analiza el pronóstico de una ubicación. */
 export async function loadAnalysis(loc, { force = false } = {}) {
   const cached = readCache(loc);
-  const fresh = cached && Date.now() - cached.at < 15 * 60 * 1000;
+  const fresh = cached && Date.now() - cached.at < FRESH_MS;
   let forecast = cached?.forecast;
+  let fetchedAt = cached?.at || 0;
   let fromCache = true;
   if (!forecast || force || !fresh) {
     try {
       forecast = await fetchForecast(loc.lat, loc.lon);
+      fetchedAt = Date.now();
       writeCache(loc, forecast);
       fromCache = false;
     } catch (err) {
       if (!forecast) throw err;
     }
   }
-  return { analysis: analyzeForecast(forecast, getSettings().weather), fromCache, cachedAt: cached?.at };
+  let analysis = analyzeForecast(forecast, getSettings().weather);
+  const stale = fromCache && Date.now() - fetchedAt > MAX_AGE_MS;
+  if (stale) {
+    const hours = Math.round((Date.now() - fetchedAt) / 3600000);
+    analysis = { ...analysis, decision: { level: 'unknown', label: LEVEL_LABEL.unknown, reasons: [`Pronóstico de hace ${hours} h sin conexión: no sirve para decidir. Actualiza cuando tengas cobertura.`] } };
+  }
+  return { analysis: { ...analysis, updatedAt: new Date(fetchedAt).toISOString() }, fromCache, cachedAt: fetchedAt, stale };
 }
 
 export function semaforoCard(decision, { link = false } = {}) {
@@ -149,7 +160,8 @@ export default function weatherView(ctx) {
     </div>`);
   };
 
-  ctx.watch(['settings'], () => { if (state.data) { state.data = { ...state.data, analysis: analyzeForecast(readCache(state.loc)?.forecast || {}, getSettings().weather) }; } draw(); });
+  let disposed = false;
+  ctx.watch(['settings'], () => { if (!disposed) load(); });
   draw();
   load();
 
@@ -178,6 +190,7 @@ export default function weatherView(ctx) {
   on(el, 'click', '#wx-default', () => { saveSettings({ weather: { defaultLocation: { name: state.loc.name, lat: state.loc.lat, lon: state.loc.lon } } }); toast('Ubicación por defecto guardada', 'ok'); draw(); });
   on(el, 'click', '#wx-search', () => searchDialog((loc) => { state.loc = loc; state.data = null; load(); }));
   on(el, 'click', '#wx-from-jobs', () => jobsDialog((loc) => { state.loc = loc; state.data = null; load(); }));
+  return () => { disposed = true; };
 }
 
 function searchDialog(onPick) {
@@ -186,14 +199,15 @@ function searchDialog(onPick) {
     body: html`<div class="field"><input id="geo-q" placeholder="Ej. Alicante, Elche, Madrid…" autocomplete="off"></div><div id="geo-results" class="list"></div>`,
   });
   const results = m.el.querySelector('#geo-results');
+  let list = [];
+  on(results, 'click', '[data-geo]', (ev, el) => { const r = list[Number(el.dataset.geo)]; if (!r) return; onPick({ name: r.name, lat: r.lat, lon: r.lon }); m.close(); });
   const run = debounce(async (q) => {
     if (q.length < 2) { results.innerHTML = ''; return; }
     results.innerHTML = '<p class="muted small">Buscando…</p>';
     try {
-      const list = await geocode(q);
+      list = await geocode(q);
       render(results, list.length ? list.map((r, i) => html`<div class="item clickable" data-geo="${i}"><div class="body"><div class="title">${r.name}</div><div class="sub">${r.region}</div></div></div>`) : html`<p class="muted small">Sin resultados</p>`);
-      on(results, 'click', '[data-geo]', (ev, el) => { const r = list[Number(el.dataset.geo)]; onPick({ name: r.name, lat: r.lat, lon: r.lon }); m.close(); });
-    } catch (err) { results.innerHTML = String(html`<p class="muted small">${err.message}</p>`); }
+    } catch (err) { render(results, html`<p class="muted small">${err.message}</p>`); }
   }, 350);
   m.el.querySelector('#geo-q').addEventListener('input', (ev) => run(ev.target.value.trim()));
 }

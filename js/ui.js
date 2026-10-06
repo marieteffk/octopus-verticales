@@ -200,14 +200,16 @@ export function modal({ title, body, actions = [], onOpen, wide = false, closabl
     const actBtn = ev.target.closest('[data-action]');
     if (actBtn) {
       const act = actions[Number(actBtn.dataset.action)];
-      if (act?.onClick) {
-        const result = act.onClick(api);
-        if (result !== false && !act.keepOpen) api.close();
-      } else {
-        api.close();
-      }
+      if (!act?.onClick) { api.close(); return; }
+      actBtn.disabled = true;
+      Promise.resolve().then(() => act.onClick(api))
+        .then((result) => { if (result !== false && !act.keepOpen) api.close(); })
+        .catch((err) => { console.error(err); toast(err.message || 'Se produjo un error', 'error'); })
+        .finally(() => { actBtn.disabled = false; });
     }
   });
+  // Un formulario del diálogo sin botón de envío (Enter en el móvil) no debe recargar la página.
+  back.addEventListener('submit', (ev) => { if (!ev.defaultPrevented) ev.preventDefault(); });
   if (onOpen) onOpen(api);
   const first = dialog.querySelector('input, textarea, select');
   if (first && !('ontouchstart' in window)) setTimeout(() => first.focus(), 50);

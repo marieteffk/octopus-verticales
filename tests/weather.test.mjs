@@ -94,6 +94,14 @@ test('analyzeForecast toma la peor de las próximas 3 horas para la decisión', 
   assert.ok(a.decision.reasons.some((r) => /Lluvia probable/.test(r)));
 });
 
+test('analyzeForecast devuelve "unknown" cuando no hay pronóstico para las próximas horas', () => {
+  const empty = analyzeForecast({}, DEFAULT_THRESHOLDS, new Date('2026-10-06T08:00:00'));
+  assert.equal(empty.decision.level, 'unknown');
+  assert.equal(empty.decision.label, 'SIN DATOS');
+  const old = analyzeForecast(syntheticForecast(), DEFAULT_THRESHOLDS, new Date('2026-10-08T08:00:00')); // pronóstico de hace 2 días
+  assert.equal(old.decision.level, 'unknown');
+});
+
 test('wmoInfo y windDir devuelven etiquetas en español', () => {
   assert.equal(wmoInfo(95).label, 'Tormenta');
   assert.equal(wmoInfo(9999).label, 'Variable');

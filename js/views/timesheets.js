@@ -13,7 +13,7 @@ export async function clockIn(jobId, notes = '') {
   const current = activeEntry();
   if (current) await clockOut(current);
   const start = nowISO();
-  return store.put('timesheets', { memberId: store.profile.id, jobId: jobId || null, start, end: null, date: start.slice(0, 10), notes });
+  return store.put('timesheets', { memberId: store.profile.id, jobId: jobId || null, start, end: null, date: dateKey(new Date()), notes });
 }
 
 export async function clockOut(entry = activeEntry()) {
@@ -33,7 +33,9 @@ function duration(t) { return t.end ? new Date(t.end) - new Date(t.start) : Date
 function toCSV(rows) {
   const header = ['Fecha', 'Trabajador', 'Trabajo', 'Entrada', 'Salida', 'Horas', 'Notas'];
   const lines = rows.map((t) => [t.date, personName(t.memberId), store.get('jobs', t.jobId)?.title || '', fmtTime(t.start), t.end ? fmtTime(t.end) : '', (duration(t) / 3600000).toFixed(2).replace('.', ','), (t.notes || '').replace(/[\r\n;]+/g, ' ')]);
-  return [header, ...lines].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  // Las celdas que empiezan por = + - @ se prefijan con ' para que Excel no las ejecute como fórmulas.
+  const cell = (v) => { let s = String(v); if (/^[=+\-@]/.test(s)) s = `'${s}`; return `"${s.replace(/"/g, '""')}"`; };
+  return [header, ...lines].map((r) => r.map(cell).join(';')).join('\r\n');
 }
 
 function manualEntryDialog(entry = null) {
@@ -121,7 +123,7 @@ export default function timesheetsView(ctx) {
   ctx.watch(['timesheets', 'jobs', 'team'], draw);
   draw();
   ctx.el.addEventListener('change', (ev) => { if (ev.target.id === 'ts-job') state.job = ev.target.value; });
-  on(ctx.el, 'click', '#ts-start', async () => { await clockIn(state.job); toast('Fichaje iniciado', 'ok'); });
+  on(ctx.el, 'click', '#ts-start', async (ev, btn) => { btn.disabled = true; await clockIn(state.job); toast('Fichaje iniciado', 'ok'); });
   on(ctx.el, 'click', '#ts-stop', async () => { await clockOut(); toast('Fichaje guardado', 'ok'); });
   on(ctx.el, 'click', '#ts-prev', () => { state.week = addDays(state.week, -7); draw(); });
   on(ctx.el, 'click', '#ts-next', () => { state.week = addDays(state.week, 7); draw(); });

@@ -14,10 +14,12 @@ import { currentLocation, loadAnalysis, semaforoCard, rainBars } from './weather
 export default function homeView(ctx) {
   const state = { wx: null, wxError: null };
   let timer = null;
+  let disposed = false;
   const me = store.profile;
   const today = todayKey();
 
   const draw = () => {
+    if (disposed) return;
     const hour = new Date().getHours();
     const greet = hour < 13 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches';
     const events = eventsOn(today);
@@ -44,7 +46,7 @@ export default function homeView(ctx) {
 
       ${state.wx ? html`${semaforoCard(state.wx.analysis.decision, { link: true })}
         <div class="card tight"><div class="row between"><span class="bold">🌦️ ${loc.name} · ${Math.round(state.wx.analysis.current.temperature_2m ?? 0)}° ${state.wx.analysis.current.info.icon}</span><span class="tiny muted">rachas ${Math.round(state.wx.analysis.current.wind_gusts_10m ?? 0)} km/h</span></div>
-          <div class="tiny muted mb">Probabilidad de lluvia próximas 12 h</div>${rainBars(state.wx.analysis.hours, { count: 12 })}</div>`
+          <div class="tiny muted mb">Probabilidad de lluvia próximas 12 h · ${state.wx.fromCache ? html`<span class="${state.wx.stale ? 'chip danger tiny' : ''}">⚠️ datos guardados a las ${fmtTime(state.wx.cachedAt)}</span>` : `actualizado ${fmtTime(state.wx.analysis.updatedAt)}`}</div>${rainBars(state.wx.analysis.hours, { count: 12 })}</div>`
         : loc ? html`<div class="card tight muted small">${state.wxError ? `⚠️ Clima: ${state.wxError}` : 'Cargando el tiempo…'}</div>`
         : html`<a class="card tight clickable" href="#/clima" style="display:block;text-decoration:none;color:inherit"><b>🌦️ Configura el clima</b><div class="muted small">Elige tu ubicación para ver aquí la probabilidad de lluvia y el semáforo de trabajo en altura.</div></a>`}
 
@@ -76,5 +78,5 @@ export default function homeView(ctx) {
   on(ctx.el, 'click', '[data-event]', (ev, el) => { if (!ev.target.closest('a')) location.hash = `#/agenda?dia=${today}`; });
   bindPostActions(ctx.el);
   bindNoteCards(ctx.el);
-  return () => clearInterval(timer);
+  return () => { disposed = true; clearInterval(timer); };
 }

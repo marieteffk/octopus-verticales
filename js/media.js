@@ -92,12 +92,18 @@ async function uploadIfCloud(doc, fullBlob, thumbBlob) {
   try {
     const url = await cloud.uploadBlob(`${doc.id}.jpg`, fullBlob);
     const thumbUrl = await cloud.uploadBlob(`${doc.id}_t.jpg`, thumbBlob);
-    const latest = store.get('photos', doc.id) || doc;
-    await store.put('photos', { ...latest, url, thumbUrl });
+    await attachUrls(doc.id, url, thumbUrl);
   } catch (err) {
     console.error('upload failed', err);
     toast('Foto guardada en el móvil; se subirá cuando haya conexión', 'warn');
   }
+}
+
+/** Guarda las URL remotas sobre la versión más reciente del documento (sin resucitar borrados). */
+async function attachUrls(id, url, thumbUrl) {
+  const latest = store.cache.get('photos')?.get(id);
+  if (!latest || latest.deleted) return;
+  await store.put('photos', { ...latest, url, thumbUrl });
 }
 
 /** Reintenta subir fotos locales sin URL remota (llamado por cloud al reconectar). */
@@ -112,7 +118,7 @@ export async function uploadPendingPhotos() {
     try {
       const url = await cloud.uploadBlob(`${photo.id}.jpg`, full);
       const thumbUrl = thumb ? await cloud.uploadBlob(`${photo.id}_t.jpg`, thumb) : url;
-      await store.put('photos', { ...photo, url, thumbUrl });
+      await attachUrls(photo.id, url, thumbUrl);
       n += 1;
     } catch (err) {
       console.error('retry upload failed', err);

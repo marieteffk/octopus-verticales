@@ -45,7 +45,9 @@ gh repo create octopus-verticales --public --source=. --push
 gh api -X POST repos/{owner}/octopus-verticales/pages -f build_type=legacy -f "source[branch]=main" -f "source[path]=/"
 ```
 
-En uno o dos minutos la app queda en `https://<tu-usuario>.github.io/octopus-verticales/`. Cada `git push` a `main` la actualiza.
+En uno o dos minutos la app queda en `https://<tu-usuario>.github.io/octopus-verticales/`. Cada `git push` a `main` la actualiza. El script [`scripts/publish.sh`](scripts/publish.sh) hace todo esto de una vez.
+
+**Al publicar cambios**, sube el número `APP_VERSION` al principio de `sw.js`: así los móviles descargan la versión nueva completa y avisan al usuario de que recargue.
 
 ## Nube compartida (Supabase)
 

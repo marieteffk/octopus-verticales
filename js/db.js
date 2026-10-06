@@ -183,8 +183,35 @@ class Store {
     if (local && local.updatedAt >= doc.updatedAt) return false;
     await idb.put('docs', doc);
     this._cacheSet(doc);
+    if (doc.coll === 'photos' && doc.deleted) {
+      for (const b of [local?.blobId, local?.thumbId, doc.blobId, doc.thumbId]) if (b) await idb.delete('blobs', b).catch(() => {});
+    }
     this.notify(doc.coll);
     return true;
+  }
+
+  /** Al iniciar sesión en la nube, el id provisional del dispositivo pasa a ser el id de la cuenta. */
+  async migrateIdentity(oldId, newId) {
+    if (!oldId || !newId || oldId === newId) return 0;
+    const swap = (v) => (v === oldId ? newId : v);
+    const swapList = (arr) => (Array.isArray(arr) ? [...new Set(arr.map(swap))] : arr);
+    let n = 0;
+    for (const coll of this.cache.keys()) {
+      for (const doc of Array.from(this.cache.get(coll).values())) {
+        const next = {
+          ...doc,
+          authorId: swap(doc.authorId), ownerId: swap(doc.ownerId), memberId: swap(doc.memberId),
+          assignedIds: swapList(doc.assignedIds), memberIds: swapList(doc.memberIds), likes: swapList(doc.likes),
+          tasks: Array.isArray(doc.tasks) ? doc.tasks.map((t) => ({ ...t, doneBy: swap(t.doneBy) })) : doc.tasks,
+          history: Array.isArray(doc.history) ? doc.history.map((h) => ({ ...h, by: swap(h.by) })) : doc.history,
+        };
+        if (JSON.stringify(next) === JSON.stringify(doc)) continue;
+        if (coll === 'team' && doc.id === oldId) { await this.remove('team', oldId); continue; }
+        await this.put(coll, next);
+        n += 1;
+      }
+    }
+    return n;
   }
 
   subscribe(coll, fn) {
@@ -218,7 +245,10 @@ class Store {
     }
     let applied = 0;
     for (const doc of payload.docs) {
-      if (await this.applyRemote(doc)) applied += 1;
+      if (await this.applyRemote(doc)) {
+        applied += 1;
+        if (this.onLocalChange) this.onLocalChange(this.cache.get(doc.coll).get(doc.id));
+      }
     }
     for (const b of payload.blobs || []) {
       const existing = await idb.get('blobs', b.id);

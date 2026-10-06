@@ -267,7 +267,7 @@ p { margin: 0 0 .6rem; }
 .stepper span { min-width: 44px; text-align: center; font-weight: 700; }
 
 /* Modal / sheet */
-.modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+.modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 160; display: flex; align-items: flex-end; justify-content: center; }
 .modal {
   width: 100%; max-width: 640px; max-height: 92vh; overflow-y: auto; background: var(--surface);
   border-radius: 20px 20px 0 0; padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
@@ -334,6 +334,8 @@ p { margin: 0 0 .6rem; }
 .semaforo.ok { background: var(--ok); }
 .semaforo.caution { background: #b8860b; }
 .semaforo.stop { background: var(--danger); }
+.semaforo.unknown { background: #5d6d7e; }
+.dot.unknown { background: #5d6d7e; }
 .semaforo .lbl { font-weight: 700; font-size: 1.1rem; }
 .semaforo ul { margin: .25rem 0 0; padding-left: 1.1rem; font-size: .9rem; }
 .bars { display: flex; align-items: flex-end; gap: 3px; height: 120px; overflow-x: auto; padding-bottom: 1.4rem; position: relative; }

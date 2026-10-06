@@ -35,7 +35,7 @@ export const ROUTES = [
   { path: 'ajustes', title: 'Ajustes', icon: '⚙️', view: settingsView },
 ];
 
-const viewEl = qs('#view');
+let viewEl = qs('#view');
 let cleanup = null;
 let watchers = [];
 
@@ -80,11 +80,14 @@ async function route() {
   teardown();
   closeDrawer();
   buildNav();
+  // Elemento nuevo por ruta: los manejadores de la vista anterior desaparecen con él.
+  const fresh = viewEl.cloneNode(false);
+  viewEl.replaceWith(fresh);
+  viewEl = fresh;
   if (!getSettings().profile) { renderOnboarding(); return; }
   const { path, id, sub, query } = parseHash();
   const match = ROUTES.find((r) => r.path === path) || ROUTES[0];
   setTopbar(match.title);
-  viewEl.innerHTML = '';
   window.scrollTo(0, 0);
   const ctx = {
     el: viewEl,
@@ -178,8 +181,8 @@ async function main() {
   applyTheme();
   bindShell();
   await store.init();
-  if (!location.hash) location.replace('#/inicio');
-  await route();
+  if (!location.hash) location.replace('#/inicio'); // dispara hashchange → route()
+  else await route();
   cloud.init().catch((err) => console.error(err));
   registerSW();
 }

@@ -1,10 +1,16 @@
 /* Sincronización opcional con Supabase (gratis). Si no está configurado, la app funciona
-   100% en local. Tabla `docs` genérica + bucket `media` (ver supabase/schema.sql). */
+   100% en local. Tabla `docs` genérica + bucket `media` (ver supabase/schema.sql).
+   El cursor de sincronización usa `synced_at`, asignado por el servidor, para no depender
+   del reloj de cada móvil. Los cambios locales siempre se encolan si la nube no está activa. */
 import { store, getSettings, saveSettings, meta, pending } from './db.js';
 import { uploadPendingPhotos } from './media.js';
 
 const SUPABASE_ESM = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const PAGE = 1000;
+
+function isPrivate(doc) {
+  return doc.coll === 'notes' && doc.shared === false;
+}
 
 function toRow(doc) {
   return {
@@ -32,6 +38,8 @@ class Cloud {
     this.channel = null;
     this.started = false;
     this.flushing = false;
+    this.pulling = null;
+    this.authSub = null;
   }
 
   isConfigured() {
@@ -54,7 +62,9 @@ class Cloud {
     return mod.createClient;
   }
 
+  /** Crea (o recrea) el cliente según los ajustes actuales. Seguro de llamar varias veces. */
   async init() {
+    if (this.client) { this.stop(); this.authSub?.unsubscribe?.(); this.authSub = null; this.client = null; this.session = null; }
     if (!this.isConfigured()) { this.setStatus('local'); return; }
     try {
       const { url, anonKey } = getSettings().cloud;
@@ -62,22 +72,22 @@ class Cloud {
       this.client = createClient(url, anonKey, { auth: { persistSession: true, autoRefreshToken: true } });
       const { data } = await this.client.auth.getSession();
       this.session = data.session || null;
-      this.client.auth.onAuthStateChange((_event, session) => {
+      this.authSub = this.client.auth.onAuthStateChange((_event, session) => {
         this.session = session;
         if (session && !this.started) this.start();
         if (!session) this.stop();
-      });
+      }).data?.subscription;
       if (this.session) await this.start();
       else this.setStatus('offline', 'Sin sesión. Inicia sesión en Ajustes.');
     } catch (err) {
       console.error('cloud init', err);
-      this.setStatus('error', 'No se pudo conectar con la nube');
+      this.setStatus('error', navigator.onLine ? 'No se pudo conectar con la nube' : 'Sin conexión: los cambios se guardan y se subirán después');
     }
-    window.addEventListener('online', () => this.isActive() && this.resync());
   }
 
   async signIn(email, password) {
     if (!this.client) await this.init();
+    if (!this.client) throw new Error('No hay conexión con la nube');
     const { data, error } = await this.client.auth.signInWithPassword({ email, password });
     if (error) throw error;
     this.session = data.session;
@@ -86,6 +96,7 @@ class Cloud {
 
   async signUp(email, password) {
     if (!this.client) await this.init();
+    if (!this.client) throw new Error('No hay conexión con la nube');
     const { data, error } = await this.client.auth.signUp({ email, password });
     if (error) throw error;
     this.session = data.session;
@@ -103,61 +114,88 @@ class Cloud {
     if (this.started || !this.isActive()) return;
     this.started = true;
     this.setStatus('pending', 'Sincronizando…');
-    store.onLocalChange = (doc) => this.push(doc);
-    await this.linkProfile();
-    await this.flushPending();
-    await this.pull();
-    this.subscribe();
-    uploadPendingPhotos().catch((err) => console.error(err));
-    this.setStatus('online', 'Conectado');
+    try {
+      await this.enqueueBacklog();
+      await this.pull();            // primero lo remoto (gana el más reciente)…
+      await this.linkProfile();     // …luego la ficha propia, sin pisar cambios ajenos
+      await this.flushPending();    // …y por último los cambios locales pendientes
+      this.subscribe();
+      uploadPendingPhotos().catch((err) => console.error(err));
+      this.setStatus(this.status === 'error' ? 'error' : 'online', this.status === 'error' ? this.detail : 'Conectado');
+    } catch (err) {
+      console.error('cloud start', err);
+      this.started = false;
+      this.setStatus('error', err.message || 'Error al sincronizar');
+    }
   }
 
   stop() {
     this.started = false;
-    store.onLocalChange = null;
     if (this.channel && this.client) this.client.removeChannel(this.channel);
     this.channel = null;
     this.setStatus(this.isConfigured() ? 'offline' : 'local', this.isConfigured() ? 'Sin sesión' : '');
+  }
+
+  /** La primera vez que se conecta, encola todo lo creado en modo local para subirlo. */
+  async enqueueBacklog() {
+    if (await meta.get('backlogDone')) return;
+    for (const coll of store.cache.keys()) {
+      for (const doc of store.cache.get(coll).values()) if (!isPrivate(doc)) await pending.add(doc);
+    }
+    await meta.set('backlogDone', true);
   }
 
   /** Alinea el id del perfil local con el usuario autenticado y publica la ficha en `team`. */
   async linkProfile() {
     const s = getSettings();
     const userId = this.session.user.id;
+    const oldId = s.profile?.id;
     const profile = { ...(s.profile || { name: this.session.user.email.split('@')[0], role: 'tecnico' }), id: userId, email: this.session.user.email };
-    if (!s.profile || s.profile.id !== userId) saveSettings({ profile });
-    const existing = store.get('team', userId) || {};
-    await store.put('team', { ...existing, id: userId, name: profile.name, role: profile.role, phone: profile.phone || existing.phone || '', color: profile.color || existing.color || null, email: profile.email, status: existing.status || 'disponible' });
+    if (oldId && oldId !== userId) {
+      await store.migrateIdentity(oldId, userId);
+      saveSettings({ profile });
+    } else if (!s.profile) {
+      saveSettings({ profile });
+    }
+    const existing = store.get('team', userId);
+    const next = { ...(existing || {}), id: userId, name: existing?.name || profile.name, role: existing?.role || profile.role, phone: existing?.phone || profile.phone || '', color: existing?.color || profile.color || null, email: profile.email, status: existing?.status || 'disponible' };
+    const changed = !existing || ['name', 'role', 'phone', 'email'].some((k) => (existing[k] || '') !== (next[k] || ''));
+    if (changed) await store.put('team', next);
+    if (existing && (existing.name !== s.profile?.name || existing.role !== s.profile?.role)) saveSettings({ profile: { ...profile, name: existing.name, role: existing.role } });
   }
 
   async resync() {
-    if (!this.isActive()) return;
+    if (!this.isActive()) { if (this.isConfigured() && !this.client) await this.init(); return; }
     this.setStatus('pending', 'Sincronizando…');
-    await this.flushPending();
     await this.pull();
+    await this.flushPending();
     await uploadPendingPhotos().catch(() => 0);
-    this.setStatus('online', 'Conectado');
+    if (this.status !== 'error') this.setStatus('online', 'Conectado');
   }
 
   async pull() {
     if (!this.isActive()) return 0;
-    let since = await meta.get('lastSync', '1970-01-01T00:00:00Z');
-    let total = 0;
-    for (;;) {
-      const { data, error } = await this.client
-        .from('docs').select('*').gt('updated_at', since).order('updated_at', { ascending: true }).limit(PAGE);
-      if (error) { console.error('pull', error); this.setStatus('error', error.message); return total; }
-      if (!data?.length) break;
-      for (const row of data) {
-        const doc = toDoc(row);
-        if (doc) await store.applyRemote(doc);
-        since = row.updated_at;
+    if (this.pulling) return this.pulling;
+    this.pulling = (async () => {
+      let since = await meta.get('lastSync', '1970-01-01T00:00:00Z');
+      let total = 0;
+      for (;;) {
+        const { data, error } = await this.client
+          .from('docs').select('*').gt('synced_at', since).order('synced_at', { ascending: true }).limit(PAGE);
+        if (error) { console.error('pull', error); this.setStatus('error', error.message); break; }
+        if (!data?.length) break;
+        for (const row of data) {
+          const doc = toDoc(row);
+          if (doc) await store.applyRemote(doc);
+          since = row.synced_at;
+        }
+        total += data.length;
+        await meta.set('lastSync', since);
+        if (data.length < PAGE) break;
       }
-      total += data.length;
-      await meta.set('lastSync', since);
-      if (data.length < PAGE) break;
-    }
-    return total;
+      return total;
+    })();
+    try { return await this.pulling; } finally { this.pulling = null; }
   }
 
   subscribe() {
@@ -166,17 +204,17 @@ class Cloud {
       .channel('docs-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, async (payload) => {
         const doc = toDoc(payload.new);
-        if (doc) {
-          await store.applyRemote(doc);
-          if (payload.new?.updated_at) await meta.set('lastSync', payload.new.updated_at);
-        }
+        if (doc) await store.applyRemote(doc);
       })
       .subscribe((status) => {
+        if (status === 'SUBSCRIBED') this.pull().then(() => this.flushPending());
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') this.setStatus('pending', 'Reconectando…');
       });
   }
 
+  /** Llamado por el store en cada cambio local. Si la nube no está activa, se encola. */
   async push(doc) {
+    if (!this.isConfigured() || isPrivate(doc)) return;
     if (!this.isActive()) { await pending.add(doc); return; }
     const { error } = await this.client.from('docs').upsert(toRow(doc));
     if (error) {
@@ -193,8 +231,9 @@ class Cloud {
       const rows = await pending.all();
       for (const row of rows) {
         const current = store.cache.get(row.doc.coll)?.get(row.id) || row.doc;
+        if (isPrivate(current)) { await pending.remove(row.id); continue; }
         const { error } = await this.client.from('docs').upsert(toRow(current));
-        if (error) { console.warn('flush failed', error.message); break; }
+        if (error) { console.warn('flush failed', error.message); this.setStatus('pending', 'Cambios pendientes de subir'); return; }
         await pending.remove(row.id);
       }
     } finally {
@@ -212,7 +251,8 @@ class Cloud {
 
   async deleteBlob(path) {
     if (!this.isActive()) return;
-    await this.client.storage.from('media').remove([path]);
+    const { error } = await this.client.storage.from('media').remove([path]);
+    if (error) console.warn('deleteBlob', error.message);
   }
 
   async testConnection(url, anonKey) {
@@ -225,3 +265,11 @@ class Cloud {
 }
 
 export const cloud = new Cloud();
+
+// Todo cambio local pasa por la nube (o por la cola si no está activa).
+store.onLocalChange = (doc) => cloud.push(doc).catch((err) => console.error('push', err));
+
+window.addEventListener('online', () => cloud.resync().catch((err) => console.error(err)));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && cloud.isActive()) cloud.resync().catch((err) => console.error(err));
+});

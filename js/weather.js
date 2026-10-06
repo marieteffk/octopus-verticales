@@ -12,8 +12,8 @@ export const DEFAULT_THRESHOLDS = Object.freeze({
   tempMin: 2, tempMax: 35,
 });
 
-export const LEVELS = { ok: 0, caution: 1, stop: 2 };
-export const LEVEL_LABEL = { ok: 'APTO', caution: 'PRECAUCIÓN', stop: 'NO APTO' };
+export const LEVELS = { ok: 0, caution: 1, stop: 2, unknown: 3 };
+export const LEVEL_LABEL = { ok: 'APTO', caution: 'PRECAUCIÓN', stop: 'NO APTO', unknown: 'SIN DATOS' };
 
 const WMO = {
   0: ['Despejado', '☀️'], 1: ['Mayormente despejado', '🌤️'], 2: ['Parcialmente nublado', '⛅'], 3: ['Nublado', '☁️'],
@@ -165,8 +165,11 @@ export function analyzeForecast(forecast, thresholds = DEFAULT_THRESHOLDS, now =
 
   // Próximas 3 horas: peor nivel para la decisión "¿subimos ahora?"
   const next3 = upcoming.slice(0, 3);
-  const next3Level = next3.reduce((acc, h) => maxLevel(acc, h.level), currentEval.level);
-  const next3Reasons = [...new Set([...currentEval.reasons, ...next3.flatMap((h) => h.reasons)])].slice(0, 4);
+  const hasData = upcoming.length > 0 && hoursAll[hoursAll.length - 1].time >= nowKey;
+  const next3Level = hasData ? next3.reduce((acc, h) => maxLevel(acc, h.level), currentEval.level) : 'unknown';
+  const next3Reasons = hasData
+    ? [...new Set([...currentEval.reasons, ...next3.flatMap((h) => h.reasons)])].slice(0, 4)
+    : ['No hay pronóstico disponible para las próximas horas. Comprueba la conexión antes de decidir.'];
 
   const days = (forecast.daily?.time || []).map((day, i) => {
     const d = forecast.daily;
