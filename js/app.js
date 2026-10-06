@@ -83,6 +83,7 @@ async function route() {
   buildNav();
   // Elemento nuevo por ruta: los manejadores de la vista anterior desaparecen con él.
   const fresh = viewEl.cloneNode(false);
+  fresh.classList.add('enter'); // animación de entrada de la pantalla
   viewEl.replaceWith(fresh);
   viewEl = fresh;
   if (!getSettings().profile) { renderOnboarding(); return; }

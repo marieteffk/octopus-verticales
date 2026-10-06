@@ -94,4 +94,13 @@ export function weatherIconName(code) {
 
 export function weatherIcon(code, opts = {}) { return icon(weatherIconName(code), opts); }
 
+/** Marca decorativa: pulpo en línea fina (para fondos y cabeceras). */
+export function octopusMark({ size = 160, cls = '' } = {}) {
+  return raw(`<svg class="mark ${cls}" width="${size}" height="${size}" viewBox="0 0 512 512" fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M256 56v72"/><ellipse cx="256" cy="228" rx="104" ry="96"/>
+    <path d="M176 300c-30 36-70 44-84 92M214 318c-14 50-40 70-30 126M256 326c2 54 14 82 0 126M298 318c14 50 40 70 30 126M336 300c30 36 70 44 84 92"/>
+    <circle cx="222" cy="222" r="10" fill="currentColor" stroke="none"/><circle cx="290" cy="222" r="10" fill="currentColor" stroke="none"/>
+  </svg>`);
+}
+
 export const ICON_NAMES = Object.keys(P);

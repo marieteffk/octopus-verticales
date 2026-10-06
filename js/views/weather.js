@@ -65,8 +65,8 @@ export function semaforoCard(decision, { link = false } = {}) {
 }
 
 export function rainBars(hours, { count = 24 } = {}) {
-  return html`<div class="bars">${hours.slice(0, count).map((h) => html`<div class="bar lvl-${h.level}" title="${h.time.slice(11)} · ${h.precipProb}% · ${h.precip} mm">
-    <span class="val">${h.precipProb}%</span><div class="fill" style="height:${Math.max(2, h.precipProb)}%"></div><span class="lbl">${h.hour}h</span></div>`)}</div>`;
+  return html`<div class="bars">${hours.slice(0, count).map((h, i) => html`<div class="bar lvl-${h.level}" title="${h.time.slice(11)} · ${h.precipProb}% · ${h.precip} mm">
+    <span class="val">${h.precipProb}%</span><div class="fill" style="height:${Math.max(2, h.precipProb)}%;--i:${i}"></div><span class="lbl">${h.hour}h</span></div>`)}</div>`;
 }
 
 export default function weatherView(ctx) {
@@ -104,7 +104,7 @@ export default function weatherView(ctx) {
       return;
     }
     if (!state.data) {
-      render(el, html`<div class="page">${head}<div class="card"><h2>${state.loc.name}</h2>${state.error ? html`<p class="muted">${state.error}</p><button class="btn" id="wx-refresh2">Reintentar</button>` : html`<p class="muted">Cargando pronóstico…</p>`}</div></div>`);
+      render(el, html`<div class="page">${head}<div class="card"><h2>${state.loc.name}</h2>${state.error ? html`<p class="muted">${state.error}</p><button class="btn" id="wx-refresh2">Reintentar</button>` : html`<div class="skeleton" style="width:40%;height:3rem;margin-bottom:.6rem"></div><div class="skeleton" style="width:70%;margin-bottom:.4rem"></div><div class="skeleton" style="width:55%"></div>`}</div></div>`);
       return;
     }
     const { analysis: a, fromCache, cachedAt } = state.data;
@@ -120,9 +120,9 @@ export default function weatherView(ctx) {
         </div></div>
       ${semaforoCard(a.decision)}
       <div class="card wx-hero">
-        <div class="row between" style="align-items:flex-start">
-          <div><div class="temp">${Math.round(c.temperature_2m ?? 0)}°</div><div class="cond">${weatherIcon(c.weather_code, { size: 22 })}<span>${c.info.label}</span></div><div class="small muted">Sensación ${Math.round(c.apparent_temperature ?? c.temperature_2m ?? 0)}°</div></div>
-          <div class="right tiny muted">${fromCache ? html`<div>Datos guardados ${cachedAt ? fmtTime(cachedAt) : ''}</div>` : html`<div>Actualizado ${fmtTime(a.updatedAt)}</div>`}<div>Fuente: Open-Meteo</div></div>
+        <div class="row between" style="align-items:center">
+          <div><div class="temp">${Math.round(c.temperature_2m ?? 0)}°</div><div class="cond"><span>${c.info.label}</span></div><div class="small muted">Sensación ${Math.round(c.apparent_temperature ?? c.temperature_2m ?? 0)}°</div></div>
+          <span class="bigicon">${weatherIcon(c.weather_code, { size: 96 })}</span>
         </div>
         <div class="wx-stats">
           <div class="wx-stat"><div class="k">Lluvia ahora</div><div class="v">${(c.precipitation ?? 0).toFixed(1)} mm</div></div>
@@ -132,10 +132,11 @@ export default function weatherView(ctx) {
           <div class="wx-stat"><div class="k">Humedad</div><div class="v">${c.relative_humidity_2m ?? '—'} %</div></div>
           <div class="wx-stat"><div class="k">Sol</div><div class="v">${a.days[0]?.sunrise ? a.days[0].sunrise.slice(11) : '—'} · ${a.days[0]?.sunset ? a.days[0].sunset.slice(11) : '—'}</div></div>
         </div>
+        <div class="tiny muted mt" style="margin-top:.75rem">${fromCache ? `Datos guardados a las ${cachedAt ? fmtTime(cachedAt) : ''}` : `Actualizado a las ${fmtTime(a.updatedAt)}`} · Fuente: Open-Meteo</div>
       </div>
 
       ${a.minutely.length ? html`<div class="card"><div class="card-title"><h2>Próximas 3 horas (cada 15 min)</h2><span class="muted tiny">mm de lluvia</span></div>
-        <div class="bars" style="height:90px">${a.minutely.map((m) => html`<div class="bar" title="${m.time.slice(11)} · ${m.precip} mm"><span class="val">${m.precip > 0 ? m.precip.toFixed(1) : ''}</span><div class="fill" style="height:${Math.min(100, m.precip * 40 + 2)}%"></div><span class="lbl">${m.time.slice(11, 16)}</span></div>`)}</div>
+        <div class="bars" style="height:90px">${a.minutely.map((m, i) => html`<div class="bar" title="${m.time.slice(11)} · ${m.precip} mm"><span class="val">${m.precip > 0 ? m.precip.toFixed(1) : ''}</span><div class="fill" style="height:${Math.min(100, m.precip * 40 + 2)}%;--i:${i}"></div><span class="lbl">${m.time.slice(11, 16)}</span></div>`)}</div>
         <p class="tiny muted" style="margin:0">${a.minutely.every((m) => m.precip === 0) ? 'Sin precipitación prevista en las próximas 3 horas.' : `Total previsto: ${a.minutely.reduce((s, m) => s + m.precip, 0).toFixed(1)} mm`}</p></div>` : ''}
 
       <div class="card"><div class="card-title"><h2>Probabilidad de lluvia</h2><button class="btn small ghost" id="wx-toggle-hours">${state.showAll ? 'Ver 24 h' : 'Ver 48 h'}</button></div>
@@ -143,8 +144,8 @@ export default function weatherView(ctx) {
         <div class="row gap-s tiny muted" style="margin-top:.4rem"><span class="dot ok"></span> apto <span class="dot caution"></span> precaución <span class="dot stop"></span> no apto</div></div>
 
       <div class="card"><div class="card-title"><h2>Viento y rachas</h2><span class="muted tiny">km/h</span></div>
-        <div class="bars">${hours.map((h) => html`<div class="bar wind lvl-${gustLevel(h)}" title="${h.time.slice(11)} · viento ${Math.round(h.wind)} · rachas ${Math.round(h.gust)}">
-          <span class="val">${Math.round(h.gust)}</span><div class="fill" style="height:${Math.min(100, h.gust / 80 * 100)}%"></div><span class="lbl">${h.hour}h</span></div>`)}</div></div>
+        <div class="bars">${hours.map((h, i) => html`<div class="bar wind lvl-${gustLevel(h)}" title="${h.time.slice(11)} · viento ${Math.round(h.wind)} · rachas ${Math.round(h.gust)}">
+          <span class="val">${Math.round(h.gust)}</span><div class="fill" style="height:${Math.min(100, h.gust / 80 * 100)}%;--i:${i}"></div><span class="lbl">${h.hour}h</span></div>`)}</div></div>
 
       <div class="card"><div class="card-title"><h2>Detalle hora a hora</h2></div>
         <div style="overflow-x:auto"><table class="hour-table"><thead><tr><th>Hora</th><th></th><th>Lluvia</th><th>mm</th><th>Viento</th><th>Rachas</th><th>Temp</th><th>UV</th><th></th></tr></thead><tbody>

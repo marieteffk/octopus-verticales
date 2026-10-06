@@ -14,7 +14,7 @@ function renderPng(source, size) {
 
 // Versión "maskable": fondo a sangre y dibujo reducido al 80 % (zona segura).
 const maskable = svg
-  .replace('<rect width="512" height="512" rx="112" fill="#0f2a44"/>', '<rect width="512" height="512" fill="#0f2a44"/><g transform="translate(51.2 51.2) scale(0.8)">')
+  .replace('<rect width="512" height="512" rx="110" fill="#0b3b5c"/>', '<rect width="512" height="512" fill="#0b3b5c"/><g transform="translate(51.2 51.2) scale(0.8)">')
   .replace('</svg>', '</g></svg>');
 
 writeFileSync(join(root, 'icons', 'icon-192.png'), renderPng(svg, 192));

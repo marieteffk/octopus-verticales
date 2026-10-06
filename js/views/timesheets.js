@@ -93,7 +93,7 @@ export default function timesheetsView(ctx) {
     rerender(ctx.el, html`<div class="page">
       <div class="card ${active ? 'timer-card' : ''}">
         ${active ? html`
-          <div class="small muted">Fichado desde las ${fmtTime(active.start)}${active.jobId ? html` en <b>${store.get('jobs', active.jobId)?.title || 'trabajo'}</b>` : ''}</div>
+          <div class="small muted"><span class="live"></span>Fichado desde las ${fmtTime(active.start)}${active.jobId ? html` en <b>${store.get('jobs', active.jobId)?.title || 'trabajo'}</b>` : ''}</div>
           <div class="timer" id="ts-timer">${fmtDuration(duration(active))}</div>
           ${iconBtn('stop', 'Parar y guardar', 'block', 'id="ts-stop"')}`
         : html`

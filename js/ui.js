@@ -160,7 +160,7 @@ export function toast(message, type = '') {
   el.className = `toast ${type}`;
   el.textContent = message;
   root.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2600);
+  setTimeout(() => { el.style.transition = 'opacity .3s, transform .3s'; el.style.opacity = '0'; el.style.transform = 'translateY(8px)'; }, 2600);
   setTimeout(() => el.remove(), 3000);
 }
 
@@ -186,10 +186,12 @@ export function modal({ title, body, actions = [], onOpen, wide = false, closabl
   const api = {
     el: dialog,
     close() {
-      back.remove();
       const idx = modalStack.indexOf(api);
       if (idx >= 0) modalStack.splice(idx, 1);
       if (!modalStack.length) document.body.style.overflow = '';
+      back.classList.add('closing');
+      back.style.pointerEvents = 'none';
+      setTimeout(() => back.remove(), 190);
     },
   };
   modalStack.push(api);

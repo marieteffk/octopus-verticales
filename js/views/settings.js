@@ -96,7 +96,7 @@ export default function settingsView(ctx) {
 
       <div class="card">
         ${cardTitle('info', 'Acerca de')}
-        <p class="small muted" style="margin:0">Octopus Verticales · app interna v1.1.0 · PWA para Android, iOS y web.<br>Meteorología: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (datos abiertos, sin clave).<br>Código: <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p>
+        <p class="small muted" style="margin:0">Octopus Verticales · app interna v1.2.0 · PWA para Android, iOS y web.<br>Meteorología: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (datos abiertos, sin clave).<br>Código: <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub</a>.</p>
       </div>
     </div>`);
   };

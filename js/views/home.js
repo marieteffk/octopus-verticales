@@ -1,6 +1,6 @@
 /* Inicio: resumen del día, clima, avisos y accesos rápidos. */
 import { html, rerender, on, todayKey, fmtLongDate, fmtTime, sortBy, fmtDuration, sectionTitle } from '../ui.js';
-import { icon, weatherIcon } from '../icons.js';
+import { icon, weatherIcon, octopusMark } from '../icons.js';
 import { store } from '../db.js';
 import { hydratePhotos } from '../media.js';
 import { jobCard, activeJobs } from './jobs.js';
@@ -35,16 +35,16 @@ export default function homeView(ctx) {
     const loc = currentLocation();
     const wx = state.wx?.analysis;
     rerender(ctx.el, html`<div class="page">
-      <div class="mb"><h1 style="margin:0">${greet}, ${me.name.split(' ')[0]}</h1><div class="muted small" style="text-transform:capitalize">${fmtLongDate(new Date())}</div></div>
+      <div class="hero">${octopusMark()}<div class="display">${greet},<br>${me.name.split(' ')[0]}</div><div class="date">${fmtLongDate(new Date())}</div></div>
 
       <div class="quick">
-        <a href="#/fotos?nueva=1">${icon('camera', { size: 22 })}Foto</a>
-        <a href="#/notas?nueva=1">${icon('note', { size: 22 })}Nota</a>
-        <a href="#/trabajos?nuevo=1">${icon('briefcase', { size: 22 })}Trabajo</a>
-        <a href="#/partes">${icon(active ? 'stop' : 'play', { size: 22 })}${active ? 'Fichado' : 'Fichar'}</a>
+        <a href="#/fotos?nueva=1"><span class="ico">${icon('camera', { size: 20 })}</span>Foto</a>
+        <a href="#/notas?nueva=1"><span class="ico">${icon('note', { size: 20 })}</span>Nota</a>
+        <a href="#/trabajos?nuevo=1"><span class="ico">${icon('briefcase', { size: 20 })}</span>Trabajo</a>
+        <a href="#/partes"><span class="ico">${icon(active ? 'stop' : 'play', { size: 20 })}</span>${active ? 'Fichado' : 'Fichar'}</a>
       </div>
 
-      ${active ? html`<div class="card tight timer-card"><div class="row between"><div><div class="small muted">Fichado desde ${fmtTime(active.start)}${active.jobId ? ` · ${store.get('jobs', active.jobId)?.title || ''}` : ''}</div><div class="timer" id="home-timer" style="font-size:1.6rem">${fmtDuration(Date.now() - new Date(active.start))}</div></div><button class="btn small ghost" id="home-stop">${icon('stop', { size: 16 })} Parar</button></div></div>` : ''}
+      ${active ? html`<div class="card tight timer-card"><div class="row between"><div><div class="small muted"><span class="live"></span>Fichado desde ${fmtTime(active.start)}${active.jobId ? ` · ${store.get('jobs', active.jobId)?.title || ''}` : ''}</div><div class="timer" id="home-timer" style="font-size:1.7rem">${fmtDuration(Date.now() - new Date(active.start))}</div></div><button class="btn small ghost" id="home-stop">${icon('stop', { size: 16 })} Parar</button></div></div>` : ''}
 
       ${wx ? html`${semaforoCard(wx.decision, { link: true })}
         <div class="card tight">
@@ -52,7 +52,7 @@ export default function homeView(ctx) {
           <div class="tiny muted mb">Probabilidad de lluvia, próximas 12 h · ${state.wx.fromCache ? html`<span class="${state.wx.stale ? 'chip danger tiny' : ''}">datos guardados a las ${fmtTime(state.wx.cachedAt)}</span>` : `actualizado ${fmtTime(wx.updatedAt)}`}</div>
           ${rainBars(wx.hours, { count: 12 })}
         </div>`
-        : loc ? html`<div class="card tight muted small">${state.wxError ? `Clima no disponible: ${state.wxError}` : 'Cargando el tiempo…'}</div>`
+        : loc ? html`<div class="card tight">${state.wxError ? html`<span class="muted small">Clima no disponible: ${state.wxError}</span>` : html`<div class="skeleton" style="width:55%;margin-bottom:.5rem"></div><div class="skeleton" style="width:85%;height:3.5rem"></div>`}</div>`
         : html`<a class="alert-card info" href="#/clima">${icon('weather', { size: 22 })}<div><b>Configura el clima</b><span class="small muted">Elige tu ubicación para ver aquí la lluvia prevista y el semáforo de trabajo en altura.</span></div></a>`}
 
       ${!checklist ? html`<a class="alert-card warn" href="#/seguridad">${icon('shield', { size: 22 })}<div><b>Checklist pre-uso pendiente</b><span class="small muted">Firma la comprobación de seguridad antes de subir.</span></div></a>` : ''}
