@@ -2,3 +2,10 @@ node_modules/
 package-lock.json
 .DS_Store
 Thumbs.db
+android/*.zip
+android/*.apk
+android/*.aab
+android/*.keystore
+android/signing.local.json
+android/extract/
+android/*.local.txt

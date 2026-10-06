@@ -5,6 +5,7 @@ import { store, getSettings, saveSettings, DEFAULT_SETTINGS, ROLES } from '../db
 import { cloud } from '../cloud.js';
 
 const REPO_URL = 'https://github.com/marieteffk/octopus-verticales';
+const APK_URL = `${REPO_URL}/releases/latest/download/octopus-verticales.apk`;
 
 function cardTitle(ic, text) { return html`<h2 class="row gap-s">${icon(ic, { cls: 'muted' })}${text}</h2>`; }
 
@@ -63,6 +64,8 @@ export default function settingsView(ctx) {
         ${standalone ? html`<p class="muted small">La app ya está instalada en este dispositivo.</p>`
           : installable ? html`<p class="muted small">Instala Octopus Verticales como app: icono en la pantalla de inicio, pantalla completa y funcionamiento sin conexión.</p><button class="btn" id="btn-install">Instalar ahora</button>`
           : html`<p class="muted small"><b>Android (Chrome):</b> menú de tres puntos → “Instalar aplicación” o “Añadir a pantalla de inicio”.<br><b>iPhone (Safari):</b> botón Compartir → “Añadir a pantalla de inicio”.<br><b>Ordenador (Chrome/Edge):</b> icono de instalar en la barra de direcciones.</p>`}
+        <div class="row wrap gap-s mt"><a class="btn ghost" href="${APK_URL}">${icon('download', { size: 16 })} Descargar APK para Android</a></div>
+        <p class="tiny muted mt" style="margin-bottom:0">El APK se instala directamente (al abrirlo, Android pedirá permitir “apps de origen desconocido” para el navegador o el gestor de archivos). Las actualizaciones de la app llegan solas: el APK abre siempre la última versión publicada.</p>
       </div>
 
       <div class="card" id="cloud-card">

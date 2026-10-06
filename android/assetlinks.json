@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.marieteffk.octopusverticales",
+        "sha256_cert_fingerprints": ["C9:97:0D:85:3C:E1:2B:C7:8C:EA:9B:A8:FD:36:9A:45:A6:CB:8B:6E:C8:3F:69:72:11:D2:05:DC:0F:6E:24:B0"]
+      }
+    }]

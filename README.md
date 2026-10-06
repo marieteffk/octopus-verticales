@@ -29,11 +29,27 @@ Es una **PWA** (Progressive Web App): la misma aplicación funciona como **app d
 
 ## Instalar en Android
 
-1. Abre la web de la app en Chrome (la URL de GitHub Pages).
-2. Menú ⋮ → **Instalar aplicación** (o “Añadir a pantalla de inicio”).
-3. Ya aparece como app con su icono; abre a pantalla completa y funciona sin conexión.
+**Opción A · APK directo (sin navegador):** descarga el instalador desde la última release:
+**https://github.com/marieteffk/octopus-verticales/releases/latest/download/octopus-verticales.apk**
+Al abrirlo, Android pedirá permitir la instalación de apps desconocidas para ese origen; acepta y listo. La app abre a pantalla completa y se actualiza sola, porque carga siempre la última versión publicada en GitHub Pages.
 
-También puedes generar un **APK/AAB para Google Play** desde la URL publicada con [PWABuilder](https://www.pwabuilder.com/) (Android → Generate). No hace falta tocar el código.
+**Opción B · desde Chrome:** abre la web, menú de tres puntos → **Instalar aplicación**.
+
+**Google Play:** la release incluye también el `octopus-verticales.aab` listo para subir a Play Console.
+
+### Regenerar el APK (cuando cambie el icono, el nombre o para subir la versión)
+
+```bash
+node scripts/build-apk.mjs 1.3.0 4      # versionName versionCode
+```
+
+El script usa el servicio gratuito de PWABuilder y firma con la clave guardada en `android/signing.keystore` + `android/signing.local.json` (no se suben a git: **haz copia de esos dos ficheros**, sin ellos no se puede actualizar la app ya instalada). Luego sube el resultado:
+
+```bash
+gh release create v1.3.0 android/octopus-verticales.apk android/octopus-verticales.aab --title "Octopus Verticales 1.3.0 (Android)" --notes "Instalador Android"
+```
+
+La app Android se abre a pantalla completa gracias al fichero `https://marieteffk.github.io/.well-known/assetlinks.json` (repositorio `marieteffk.github.io`), que enlaza la firma del APK con el dominio. Si cambias la clave de firma, actualiza allí la huella SHA-256 (está en `android/assetlinks.json`).
 
 ## Publicar gratis en GitHub Pages
 
